@@ -35,8 +35,29 @@
 
 <!-- Add Goal Form -->
 <div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white fw-bold">➕ Add a Goal</div>
+    <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+        <span>➕ Add a Goal</span>
+        <button type="button" class="btn btn-sm btn-outline-light" onclick="suggestGoals()" id="suggestBtn">
+            🤖 AI Suggest
+        </button>
+    </div>
     <div class="card-body">
+        <!-- AI Suggestions area (hidden until triggered) -->
+        <div id="suggestionsArea" style="display: none;" class="mb-3">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-bold small">🤖 AI Goal Suggestions</span>
+                    <button type="button" class="btn-close btn-close-white btn-sm" onclick="document.getElementById('suggestionsArea').style.display='none'"></button>
+                </div>
+                <div class="card-body py-2" id="suggestionsContent">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                        <span class="text-muted small">Analyzing your sessions and suggesting goals...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <form method="post" asp-page-handler="Create">
             <div class="row g-2 align-items-end">
                 <div class="col-12 col-md-4">
@@ -193,3 +214,32 @@ else
         </div>
     </div>
 }
+
+<script>
+    function suggestGoals() {
+        var area = document.getElementById('suggestionsArea');
+        var content = document.getElementById('suggestionsContent');
+        var btn = document.getElementById('suggestBtn');
+
+        area.style.display = '';
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Thinking...';
+        content.innerHTML = '<div class="d-flex align-items-center gap-2">' +
+            '<div class="spinner-border spinner-border-sm text-info" role="status"></div>' +
+            '<span class="text-muted small">Analyzing your sessions and suggesting goals...</span></div>';
+
+        fetch('/Goals?handler=Suggest')
+            .then(r => r.json())
+            .then(data => {
+                content.innerHTML = '<div class="small">' +
+                    data.suggestions.replace(/\n/g, '<br>') + '</div>';
+                btn.disabled = false;
+                btn.innerHTML = '🤖 AI Suggest';
+            })
+            .catch(() => {
+                content.innerHTML = '<div class="text-muted small">Could not reach AI. Make sure Ollama is running or try again later.</div>';
+                btn.disabled = false;
+                btn.innerHTML = '🤖 AI Suggest';
+            });
+    }
+</script>

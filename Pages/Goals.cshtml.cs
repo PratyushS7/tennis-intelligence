@@ -11,11 +11,13 @@ public class GoalsModel : PageModel
 {
     private readonly TennisDbContext _db;
     private readonly InteractionService _interaction;
+    private readonly CoachService _coach;
 
-    public GoalsModel(TennisDbContext db, InteractionService interaction)
+    public GoalsModel(TennisDbContext db, InteractionService interaction, CoachService coach)
     {
         _db = db;
         _interaction = interaction;
+        _coach = coach;
     }
 
     public List<GoalViewModel> ActiveGoals { get; set; } = [];
@@ -96,6 +98,36 @@ public class GoalsModel : PageModel
             TempData["Success"] = $"\"{goal.Name}\" archived.";
         }
         return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnGetSuggestAsync()
+    {
+        var sessionCount = await _db.Sessions.CountAsync();
+        var activeGoals = await _db.DevelopmentGoals
+            .Where(g => g.Status == GoalStatuses.Active)
+            .Select(g => g.Name)
+            .ToListAsync();
+
+        var prompt = "Based on my session history, suggest 2-3 new development goals I should work on. " +
+            "For each suggestion, give: the goal name, the category (Technique/Tactical/Mental/Fitness/Fundamentals), " +
+            "and a one-sentence reason why this would help me improve. " +
+            "Format each as a bullet point.";
+
+        if (activeGoals.Count > 0)
+            prompt += $" My current active goals are: {string.Join(", ", activeGoals)}. Don't suggest duplicates.";
+
+        if (sessionCount == 0)
+            prompt += " I haven't logged any sessions yet, so suggest common beginner development goals.";
+
+        try
+        {
+            var response = await _coach.AskCoachAsync(prompt);
+            return new JsonResult(new { suggestions = response });
+        }
+        catch
+        {
+            return new JsonResult(new { suggestions = "Couldn't generate suggestions right now. Try again later or check if Ollama is running." });
+        }
     }
 
     private async Task LoadGoalsAsync()
