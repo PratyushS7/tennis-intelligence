@@ -1,0 +1,19 @@
+databases:
+  - name: tennis-intelligence-db
+    plan: free
+    databaseName: tennis_intelligence
+    user: tennis_user
+
+services:
+  - type: web
+    name: tennis-intelligence
+    plan: free
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tennis-intelligence-db
+          property: connectionString
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production

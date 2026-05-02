@@ -11,7 +11,22 @@ builder.Services.AddRazorPages(options =>
 });
 
 builder.Services.AddDbContext<TennisDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    // Render.com provides DATABASE_URL; fall back to appsettings for local dev
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrEmpty(databaseUrl))
+    {
+        // Render format: postgres://user:password@host:port/dbname
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
 
 // AI Coach services
 builder.Services.AddHttpClient<OllamaCoachProvider>();
