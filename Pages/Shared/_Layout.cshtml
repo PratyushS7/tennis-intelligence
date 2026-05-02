@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>@ViewData["Title"] - Tennis Intelligence</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#198754" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tennis" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/TennisIntelligence.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <!-- Top nav (visible on desktop, hidden on mobile) -->
+    <header class="d-none d-md-block">
+        <nav class="navbar navbar-expand-md navbar-light bg-success shadow-sm mb-3">
+            <div class="container">
+                <a class="navbar-brand text-white fw-bold" asp-page="/Index">🎾 Tennis Intelligence</a>
+                <div class="navbar-collapse collapse d-md-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-page="/LogSession">📝 Log Session</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-page="/Goals">🎯 Goals</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-page="/History">📋 History</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-page="/Coach">🤖 AI Coach</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Mobile top bar (slim, just branding) -->
+    <header class="d-md-none bg-success text-white text-center py-2 shadow-sm mb-2">
+        <a asp-page="/Index" class="text-white text-decoration-none fw-bold" style="font-size: 1.1rem;">🎾 Tennis Intelligence</a>
+    </header>
+
+    <div class="container mobile-container">
+        <main role="main" class="pb-3 mb-mobile-nav">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted mt-4 d-none d-md-block">
+        <div class="container text-center py-2">
+            &copy; 2026 Tennis Intelligence
+        </div>
+    </footer>
+
+    <!-- Bottom navigation for mobile -->
+    <nav class="mobile-bottom-nav d-md-none">
+        @{
+            var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+        }
+        <a asp-page="/Index" class="bottom-nav-item @(currentPage == "/Index" ? "active" : "")">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Home</span>
+        </a>
+        <a asp-page="/LogSession" class="bottom-nav-item @(currentPage == "/LogSession" ? "active" : "")">
+            <span class="bottom-nav-icon">📝</span>
+            <span class="bottom-nav-label">Log</span>
+        </a>
+        <a asp-page="/Goals" class="bottom-nav-item @(currentPage == "/Goals" || currentPage == "/GoalDetail" ? "active" : "")">
+            <span class="bottom-nav-icon">🎯</span>
+            <span class="bottom-nav-label">Goals</span>
+        </a>
+        <a asp-page="/History" class="bottom-nav-item @(currentPage == "/History" ? "active" : "")">
+            <span class="bottom-nav-icon">📋</span>
+            <span class="bottom-nav-label">History</span>
+        </a>
+        <a asp-page="/Coach" class="bottom-nav-item @(currentPage == "/Coach" ? "active" : "")">
+            <span class="bottom-nav-icon">🤖</span>
+            <span class="bottom-nav-label">Coach</span>
+        </a>
+    </nav>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

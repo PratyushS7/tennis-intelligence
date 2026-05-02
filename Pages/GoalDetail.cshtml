@@ -1,0 +1,166 @@
+@page "{id:int}"
+@model TennisIntelligence.Pages.GoalDetailModel
+@using TennisIntelligence.Models
+@{
+    ViewData["Title"] = Model.Goal.Name;
+
+    string CategoryBadge(string cat) => cat switch
+    {
+        GoalCategories.Technique => "bg-primary",
+        GoalCategories.Tactical => "bg-info text-dark",
+        GoalCategories.Mental => "bg-warning text-dark",
+        GoalCategories.Fitness => "bg-danger",
+        GoalCategories.Fundamentals => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    var ratingEmojis = new Dictionary<int, string>
+    {
+        {1, "😫"}, {2, "😕"}, {3, "😐"}, {4, "🙂"}, {5, "🔥"}
+    };
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Goals">🎯 Goals</a></li>
+        <li class="breadcrumb-item active">@Model.Goal.Name</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <h2 class="mb-0">@Model.Goal.Name</h2>
+    <span class="badge @CategoryBadge(Model.Goal.Category)">@Model.Goal.Category</span>
+    @if (Model.Goal.Status != GoalStatuses.Active)
+    {
+        <span class="badge @(Model.Goal.Status == GoalStatuses.Completed ? "bg-success" : "bg-secondary")">@Model.Goal.Status</span>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Goal.Description))
+{
+    <p class="text-muted mb-3">@Model.Goal.Description</p>
+}
+
+<!-- Summary Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body py-2">
+                <h3 class="fw-bold mb-0 text-primary">@Model.CheckInHistory.Count</h3>
+                <small class="text-muted">Check-ins</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body py-2">
+                <h3 class="fw-bold mb-0">
+                    @{ var days = (int)((Model.Goal.CompletedAt ?? DateTime.UtcNow) - Model.Goal.CreatedAt).TotalDays; }
+                    @days
+                </h3>
+                <small class="text-muted">Days Active</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card shadow-sm text-center">
+            <div class="card-body py-2">
+                <h3 class="fw-bold mb-0 text-danger">@Model.StruggledCount</h3>
+                <small class="text-muted">😤 Struggled</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card shadow-sm text-center">
+            <div class="card-body py-2">
+                <h3 class="fw-bold mb-0 text-warning">@Model.OkayCount</h3>
+                <small class="text-muted">😐 Okay</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card shadow-sm text-center">
+            <div class="card-body py-2">
+                <h3 class="fw-bold mb-0 text-success">@Model.ClickedCount</h3>
+                <small class="text-muted">✅ Clicked</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feeling Timeline -->
+@if (Model.CheckInHistory.Count > 0)
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">📈 Progress Timeline</div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                @foreach (var ci in Model.CheckInHistory.AsEnumerable().Reverse())
+                {
+                    <div class="text-center" style="min-width: 36px;" title="@ci.Date.ToString("MMM dd") — @ci.HowItFelt">
+                        <div style="font-size: 1.3rem;">@GoalFeelings.ToEmoji(ci.HowItFelt)</div>
+                        <div class="small text-muted" style="font-size: 0.65rem;">@ci.Date.ToString("M/d")</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Check-in History Table -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">📋 Check-in History</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Session</th>
+                            <th>How It Felt</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ci in Model.CheckInHistory)
+                        {
+                            <tr>
+                                <td>@ci.Date.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    @if (ci.SessionRating.HasValue && ratingEmojis.ContainsKey(ci.SessionRating.Value))
+                                    {
+                                        <span>@ratingEmojis[ci.SessionRating.Value]</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(ci.SessionType))
+                                    {
+                                        <span class="badge bg-info text-dark ms-1" style="font-size:0.7em;">@ci.SessionType</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span style="font-size: 1.2rem;">@GoalFeelings.ToEmoji(ci.HowItFelt)</span>
+                                    <span class="small text-muted ms-1">@ci.HowItFelt</span>
+                                </td>
+                                <td class="small text-muted">@(ci.Note ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-center py-4">
+        <div style="font-size: 3rem;">📝</div>
+        <p class="text-muted mt-2">No check-ins yet. <a asp-page="/LogSession">Log a session</a> and check in on this goal!</p>
+    </div>
+}
+
+<!-- Quick Coach Ask -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body text-center">
+        <a asp-page="/Coach" class="btn btn-outline-success">
+            🤖 Ask AI Coach about "@Model.Goal.Name"
+        </a>
+    </div>
+</div>

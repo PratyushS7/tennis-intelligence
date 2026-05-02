@@ -1,0 +1,195 @@
+@page
+@model TennisIntelligence.Pages.GoalsModel
+@using TennisIntelligence.Models
+@{
+    ViewData["Title"] = "Goals Hub";
+
+    string CategoryBadge(string cat) => cat switch
+    {
+        GoalCategories.Technique => "bg-primary",
+        GoalCategories.Tactical => "bg-info text-dark",
+        GoalCategories.Mental => "bg-warning text-dark",
+        GoalCategories.Fitness => "bg-danger",
+        GoalCategories.Fundamentals => "bg-success",
+        _ => "bg-secondary"
+    };
+}
+
+<h2>🎯 Development Goals</h2>
+<p class="text-muted">Define what you're working on. Track progress session by session.</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Add Goal Form -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white fw-bold">➕ Add a Goal</div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Create">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold">What are you working on?</label>
+                    <input type="text" name="NewGoalName" class="form-control" placeholder="e.g., Improve volleys" maxlength="100" required />
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold">Category</label>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var cat in GoalCategories.All)
+                        {
+                            var catId = "cat_" + cat;
+                            var isDefault = cat == GoalCategories.Technique;
+                            <input class="btn-check" type="radio" name="NewGoalCategory" value="@cat" id="@catId" autocomplete="off"
+                                   checked="@isDefault" />
+                            <label class="btn btn-outline-secondary btn-sm rounded-pill" for="@catId">@cat</label>
+                        }
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold">Why it matters <span class="text-muted fw-normal">(optional)</span></label>
+                    <input type="text" name="NewGoalDescription" class="form-control" placeholder="One-liner motivation" maxlength="200" />
+                </div>
+                <div class="col-12 col-md-2">
+                    <button type="submit" class="btn btn-success w-100 fw-bold">🎯 Add Goal</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Goals -->
+@if (Model.ActiveGoals.Count == 0)
+{
+    <div class="text-center py-5">
+        <div style="font-size: 4rem;">🎯</div>
+        <h3 class="mt-3">No goals yet</h3>
+        <p class="text-muted">Add your first development goal above to start tracking progress.</p>
+    </div>
+}
+else
+{
+    <h5 class="fw-bold mb-3">Active Goals <span class="badge bg-success">@Model.ActiveGoals.Count</span></h5>
+    <div class="row g-3 mb-4">
+        @foreach (var goal in Model.ActiveGoals)
+        {
+            <div class="col-12 col-md-6">
+                <div class="card shadow-sm h-100 border-start border-4 @(goal.TotalCheckIns > 0 ? "border-success" : "border-warning")">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <a asp-page="/GoalDetail" asp-route-id="@goal.Id" class="text-decoration-none">
+                                    <h5 class="card-title mb-1 text-dark">@goal.Name</h5>
+                                </a>
+                                <span class="badge @CategoryBadge(goal.Category) me-1">@goal.Category</span>
+                                <small class="text-muted">@goal.DaysActive days</small>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(goal.Description))
+                        {
+                            <p class="card-text text-muted small mb-2">@goal.Description</p>
+                        }
+
+                        <!-- Progress strip -->
+                        <div class="mb-2">
+                            @if (goal.Last5Feelings.Count > 0)
+                            {
+                                <div class="d-flex gap-1 align-items-center">
+                                    <small class="text-muted me-1">Recent:</small>
+                                    @foreach (var feel in goal.Last5Feelings)
+                                    {
+                                        <span style="font-size: 1.2rem;" title="@feel">@GoalFeelings.ToEmoji(feel)</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <small class="text-muted">No check-ins yet — log a session to track this goal</small>
+                            }
+                        </div>
+
+                        <!-- Stats -->
+                        @if (goal.TotalCheckIns > 0)
+                        {
+                            <div class="d-flex gap-3 small text-muted mb-2">
+                                <span>@goal.TotalCheckIns check-ins</span>
+                                <span>😤 @goal.StruggledCount</span>
+                                <span>😐 @goal.OkayCount</span>
+                                <span>✅ @goal.ClickedCount</span>
+                            </div>
+                        }
+
+                        <!-- Actions -->
+                        <div class="d-flex gap-2">
+                            <a asp-page="/GoalDetail" asp-route-id="@goal.Id" class="btn btn-outline-primary btn-sm">📊 Details</a>
+                            <form method="post" asp-page-handler="Complete" asp-route-id="@goal.Id" class="d-inline"
+                                  onsubmit="return confirm('Mark this goal as completed?')">
+                                <button type="submit" class="btn btn-outline-success btn-sm">✅ Completed</button>
+                            </form>
+                            <form method="post" asp-page-handler="Archive" asp-route-id="@goal.Id" class="d-inline"
+                                  onsubmit="return confirm('Archive this goal?')">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">📦 Archive</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Completed/Archived Goals -->
+@if (Model.CompletedGoals.Count > 0)
+{
+    <div class="mt-4">
+        <a class="text-decoration-none fw-bold text-muted" data-bs-toggle="collapse" href="#completedGoals" role="button" aria-expanded="false">
+            📦 Completed & Archived (@Model.CompletedGoals.Count) ▾
+        </a>
+        <div class="collapse mt-2" id="completedGoals">
+            @foreach (var goal in Model.CompletedGoals)
+            {
+                <div class="card mb-2 shadow-sm border-start border-4 @(goal.Status == GoalStatuses.Completed ? "border-success" : "border-secondary")">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold">@goal.Name</span>
+                                <span class="badge @CategoryBadge(goal.Category) ms-1">@goal.Category</span>
+                                @if (goal.Status == GoalStatuses.Completed)
+                                {
+                                    <span class="badge bg-success ms-1">✅ Completed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary ms-1">Archived</span>
+                                }
+                            </div>
+                            <div class="text-muted small">
+                                @goal.TotalCheckIns check-ins · @goal.DaysActive days
+                                @if (goal.Last5Feelings.Count > 0)
+                                {
+                                    <span class="ms-1">
+                                        @foreach (var feel in goal.Last5Feelings)
+                                        {
+                                            <span>@GoalFeelings.ToEmoji(feel)</span>
+                                        }
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

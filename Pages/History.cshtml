@@ -1,0 +1,187 @@
+@page
+@model TennisIntelligence.Pages.HistoryModel
+@{
+    ViewData["Title"] = "Session History";
+
+    string RatingEmoji(int? rating) => rating switch
+    {
+        1 => "😫",
+        2 => "😕",
+        3 => "😐",
+        4 => "🙂",
+        5 => "🔥",
+        _ => "—"
+    };
+}
+
+<h2>📋 Session History</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!Model.Sessions.Any())
+{
+    <div class="alert alert-info mt-3">
+        No sessions recorded yet. <a asp-page="/LogSession">Log your first session!</a>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center gap-3 mt-2 mb-2">
+        <p class="text-muted mb-0">@Model.Sessions.Count session(s) recorded</p>
+        <button class="btn btn-sm btn-outline-secondary" onclick="toggleBodyData()" id="bodyDataToggle">🩺 Show Body Data</button>
+    </div>
+
+    <div class="table-responsive d-none d-md-block">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-success">
+                <tr>
+                    <th>Date</th>
+                    <th>Rating</th>
+                    <th>Duration</th>
+                    <th>⚡ Energy</th>
+                    <th class="body-data-col" style="display:none;">💪 Elbow</th>
+                    <th class="body-data-col" style="display:none;">🦴 Shoulder</th>
+                    <th>Breakdowns</th>
+                    <th>🎯 Focus</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Sessions)
+                {
+                    <tr>
+                        <td>
+                            @s.Date.ToString("MMM dd")
+                            @if (!string.IsNullOrEmpty(s.SessionType))
+                            {
+                                <span class="badge bg-info text-dark ms-1" style="font-size:0.7em;">@s.SessionType</span>
+                            }
+                        </td>
+                        <td>@RatingEmoji(s.SessionRating)</td>
+                        <td>@s.DurationMinutes min</td>
+                        <td>
+                            <span class="badge @(s.EnergyLevel >= 7 ? "bg-success" : s.EnergyLevel >= 4 ? "bg-warning" : "bg-danger")">
+                                @s.EnergyLevel/10
+                            </span>
+                        </td>
+                        <td class="body-data-col" style="display:none;">
+                            @if (s.ElbowPain.HasValue)
+                            {
+                            <span class="badge @(s.ElbowPain.Value <= 3 ? "bg-success" : s.ElbowPain.Value <= 6 ? "bg-warning" : "bg-danger")">
+                                @s.ElbowPain.Value/10
+                            </span>
+                            }
+                            else { <span class="text-muted">—</span> }
+                        </td>
+                        <td class="body-data-col" style="display:none;">
+                            @if (s.ShoulderTightness.HasValue)
+                            {
+                            <span class="badge @(s.ShoulderTightness.Value <= 3 ? "bg-success" : s.ShoulderTightness.Value <= 6 ? "bg-warning" : "bg-danger")">
+                                @s.ShoulderTightness.Value/10
+                            </span>
+                            }
+                            else { <span class="text-muted">—</span> }
+                        </td>
+                        <td>
+                            @if (s.BreakdownAreaList.Any())
+                            {
+                                @foreach (var area in s.BreakdownAreaList)
+                                {
+                                    <span class="badge bg-secondary me-1">@area</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(s.FocusArea))
+                            {
+                                @s.FocusArea
+                                @if (s.FocusAchieved == true) { <span>✅</span> }
+                                else if (s.FocusAchieved == false) { <span>❌</span> }
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@s.Id"
+                                  onsubmit="return confirm('Delete this session?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile-friendly card view -->
+    <div class="d-md-none">
+        @foreach (var s in Model.Sessions)
+        {
+            <div class="card mb-2 shadow-sm">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>@s.Date.ToString("MMM dd, yyyy")</strong>
+                            @if (!string.IsNullOrEmpty(s.SessionType))
+                            {
+                                <span class="badge bg-info text-dark ms-1" style="font-size:0.7em;">@s.SessionType</span>
+                            }
+                        </div>
+                        <span>@s.DurationMinutes min</span>
+                    </div>
+                    <div class="mt-1">
+                        @RatingEmoji(s.SessionRating) &nbsp; ⚡ @s.EnergyLevel
+                    </div>
+                    <div class="mt-1 body-data-mobile" style="display:none;">
+                        💪 @(s.ElbowPain?.ToString() ?? "—") &nbsp; 🦴 @(s.ShoulderTightness?.ToString() ?? "—")
+                    </div>
+                    @if (s.BreakdownAreaList.Any())
+                    {
+                        <div class="mt-1">
+                            @foreach (var area in s.BreakdownAreaList)
+                            {
+                                <span class="badge bg-secondary">@area</span>
+                            }
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(s.FocusArea))
+                    {
+                        <div class="mt-1 text-muted">
+                            🎯 @s.FocusArea
+                            @if (s.FocusAchieved == true) { <span>✅</span> }
+                            else if (s.FocusAchieved == false) { <span>❌</span> }
+                        </div>
+                    }
+                    <div class="mt-2 text-end">
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@s.Id"
+                              onsubmit="return confirm('Delete this session?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<script>
+    function toggleBodyData() {
+        var cols = document.querySelectorAll('.body-data-col, .body-data-mobile');
+        var btn = document.getElementById('bodyDataToggle');
+        var showing = cols.length > 0 && cols[0].style.display !== 'none';
+        cols.forEach(function(el) { el.style.display = showing ? 'none' : ''; });
+        btn.textContent = showing ? '🩺 Show Body Data' : '🩺 Hide Body Data';
+    }
+</script>

@@ -1,0 +1,181 @@
+@page
+@model TennisIntelligence.Pages.CoachModel
+@{
+    ViewData["Title"] = "AI Coach";
+}
+
+<style>
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 280px);
+        min-height: 400px;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        background: #f8f9fa;
+        margin-bottom: 1rem;
+    }
+    .chat-bubble {
+        max-width: 80%;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        margin-bottom: 0.75rem;
+        word-wrap: break-word;
+        line-height: 1.5;
+    }
+    .chat-bubble.user {
+        background: #198754;
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .chat-bubble.assistant {
+        background: white;
+        border: 1px solid #dee2e6;
+        margin-right: auto;
+        border-bottom-left-radius: 0.25rem;
+    }
+    .chat-bubble.assistant .bubble-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+    .chat-bubble.user .bubble-label {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-bottom: 0.25rem;
+        text-align: right;
+    }
+    .chat-timestamp {
+        font-size: 0.65rem;
+        opacity: 0.6;
+        margin-top: 0.25rem;
+    }
+    .chat-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+    }
+    .chat-input-area {
+        display: flex;
+        gap: 0.5rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">🤖 AI Tennis Coach</h2>
+        <small class="text-muted">Powered by <strong>@Model.ProviderName</strong> — remembers your conversation</small>
+    </div>
+    @if (Model.ChatHistory.Count > 0)
+    {
+        <form method="post" asp-page-handler="Clear">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">🗑️ Clear Chat</button>
+        </form>
+    }
+</div>
+
+<!-- Quick Prompts -->
+<div class="mb-3">
+    <div class="d-flex flex-wrap gap-2">
+        <form method="post" asp-page-handler="Quick" class="d-inline" onsubmit="showLoading()">
+            <input type="hidden" name="prompt" value="Give me a general coaching review based on my session data." />
+            <button type="submit" class="btn btn-outline-success btn-sm">📋 General Review</button>
+        </form>
+        <form method="post" asp-page-handler="Quick" class="d-inline" onsubmit="showLoading()">
+            <input type="hidden" name="prompt" value="What should I focus on in my next tennis session?" />
+            <button type="submit" class="btn btn-outline-success btn-sm">🎯 Next Focus</button>
+        </form>
+        <form method="post" asp-page-handler="Quick" class="d-inline" onsubmit="showLoading()">
+            <input type="hidden" name="prompt" value="Suggest specific drills to improve my weakest areas." />
+            <button type="submit" class="btn btn-outline-success btn-sm">🏋️ Drill Ideas</button>
+        </form>
+        <form method="post" asp-page-handler="Quick" class="d-inline" onsubmit="showLoading()">
+            <input type="hidden" name="prompt" value="Analyze my mental game patterns and give tips." />
+            <button type="submit" class="btn btn-outline-success btn-sm">🧠 Mental Game</button>
+        </form>
+        <form method="post" asp-page-handler="Quick" class="d-inline" onsubmit="showLoading()">
+            <input type="hidden" name="prompt" value="Analyze my match record and tactical patterns." />
+            <button type="submit" class="btn btn-outline-success btn-sm">📊 Match Analysis</button>
+        </form>
+    </div>
+</div>
+
+<!-- Chat Container -->
+<div class="chat-container">
+    <div class="chat-messages" id="chatMessages">
+        @if (Model.ChatHistory.Count == 0)
+        {
+            <div class="chat-empty" id="emptyState">
+                <div style="font-size: 3rem;">🎾🤖</div>
+                <p class="mt-2 mb-1 fw-bold">Your AI Tennis Coach</p>
+                <p class="text-center" style="max-width: 400px;">
+                    Ask a question or tap a quick prompt above. I remember our conversation
+                    so you can follow up naturally!
+                </p>
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in Model.ChatHistory)
+            {
+                <div class="d-flex">
+                    <div class="chat-bubble @msg.Role">
+                        @if (msg.Role == "assistant")
+                        {
+                            <div class="bubble-label">🤖 Coach</div>
+                            @Html.Raw(msg.Content.Replace("\n", "<br />"))
+                        }
+                        else
+                        {
+                            <div class="bubble-label">You</div>
+                            @msg.Content
+                        }
+                        <div class="chat-timestamp">@msg.Timestamp.ToLocalTime().ToString("h:mm tt")</div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Loading Spinner (hidden by default) -->
+    <div id="loading" class="text-center py-3" style="display:none;">
+        <div class="spinner-border text-success spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span class="ms-2 text-muted">Coach is thinking...</span>
+    </div>
+
+    <!-- Chat Input -->
+    <form method="post" class="chat-input-area" onsubmit="showLoading()">
+        <input type="text" asp-for="UserMessage" class="form-control"
+               placeholder="Ask your coach anything..." autocomplete="off" />
+        <button type="submit" class="btn btn-success px-4">
+            Send 🎾
+        </button>
+    </form>
+</div>
+
+<script>
+    // Auto-scroll to bottom of chat
+    (function() {
+        var chat = document.getElementById('chatMessages');
+        if (chat) chat.scrollTop = chat.scrollHeight;
+    })();
+
+    function showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        var empty = document.getElementById('emptyState');
+        if (empty) empty.style.display = 'none';
+        var btns = document.querySelectorAll('button[type=submit]');
+        for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+    }
+</script>

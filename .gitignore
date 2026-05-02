@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Secrets & local config
+appsettings.Development.json
+
+# EF Core tools
+dotnet-tools.json
+
+# Build artifacts
+*.dll
+*.pdb
+*.exe
+
+# Logs
+logs/
+*.log

@@ -1,0 +1,360 @@
+@page
+@model TennisIntelligence.Pages.LogSessionModel
+@using TennisIntelligence.Models
+@{
+    ViewData["Title"] = "Log Session";
+}
+
+<h2>📝 Log Tennis Session</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ShowInsight"] != null)
+{
+    <div class="card shadow-sm mb-3 border-success" id="insightCard">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <span>🤖 Quick Coach Tip</span>
+            <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('insightCard').remove()"></button>
+        </div>
+        <div class="card-body" id="insightBody">
+            <div class="d-flex align-items-center gap-2">
+                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                <span class="text-muted">Generating a tip based on your session...</span>
+            </div>
+        </div>
+    </div>
+    <script>
+        fetch('/LogSession?handler=Insight')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('insightBody').innerHTML =
+                    '<div>' + data.tip.replace(/\n/g, '<br>') + '</div>' +
+                    '<a href="/Coach" class="btn btn-outline-success btn-sm mt-2">🤖 Ask more from AI Coach</a>';
+            })
+            .catch(() => {
+                document.getElementById('insightBody').innerHTML =
+                    '<div>Great session! Visit the <a href="/Coach">AI Coach</a> for detailed advice. 🎾</div>';
+            });
+    </script>
+}
+
+<form method="post" class="mt-3">
+    <div class="row g-3">
+        <!-- Date -->
+        <div class="col-6">
+            <label class="form-label fw-bold">Date</label>
+            <input type="date" asp-for="Session.Date" class="form-control" />
+        </div>
+
+        <!-- Duration -->
+        <div class="col-6">
+            <label class="form-label fw-bold">Duration (min)</label>
+            <input type="number" asp-for="Session.DurationMinutes" class="form-control" min="1" max="600" placeholder="60" />
+        </div>
+
+        <!-- Session Rating -->
+        <div class="col-12">
+            <label class="form-label fw-bold">How was the session?</label>
+            <input type="hidden" name="Session.SessionRating" id="sessionRatingInput" value="0" />
+            <div class="d-flex flex-wrap gap-2">
+                @{
+                    var emojis = new[] { "😫", "😕", "😐", "🙂", "🔥" };
+                    for (int i = 0; i < emojis.Length; i++)
+                    {
+                        var val = i + 1;
+                        var ratingId = "rating_" + val;
+                        <input class="btn-check" type="radio" name="ratingSelect" value="@val" id="@ratingId" autocomplete="off"
+                               onchange="document.getElementById('sessionRatingInput').value=this.value" />
+                        <label class="btn btn-outline-secondary btn-sm rounded-pill fs-5" for="@ratingId">@emojis[i]</label>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Session Type + Match Format -->
+        <div class="col-7">
+            <label class="form-label fw-bold">🎾 Session Type</label>
+            <input type="hidden" name="Session.SessionType" id="sessionTypeInput" value="Practice" />
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var stype in Model.SessionTypeOptions)
+                {
+                    var typeId = "type_" + stype;
+                    var isDefault = stype == "Practice";
+                    <input class="btn-check" type="radio" name="typeSelect" value="@stype" id="@typeId" autocomplete="off"
+                           checked="@isDefault"
+                           onchange="document.getElementById('sessionTypeInput').value=this.value" />
+                    <label class="btn btn-outline-primary btn-sm rounded-pill" for="@typeId">@stype</label>
+                }
+            </div>
+        </div>
+
+        <div class="col-5">
+            <label class="form-label fw-bold">👥 Format</label>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var fmt in new[] { "Singles", "Doubles" })
+                {
+                    var fmtId = "fmt_" + fmt;
+                    <input class="btn-check" type="radio" name="Session.MatchFormat" value="@fmt" id="@fmtId" autocomplete="off" />
+                    <label class="btn btn-outline-primary btn-sm rounded-pill" for="@fmtId">@fmt</label>
+                }
+            </div>
+        </div>
+
+        <!-- Body Feel (v2 simplified) -->
+        <div class="col-12">
+            <label class="form-label fw-bold">🩺 How does your body feel?</label>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var feel in BodyFeelValues.All)
+                {
+                    var feelId = "bf_" + feel;
+                    <input class="btn-check" type="radio" name="Session.BodyFeel" value="@feel" id="@feelId" autocomplete="off" />
+                    <label class="btn btn-outline-secondary btn-sm rounded-pill fs-6" for="@feelId">
+                        @BodyFeelValues.ToEmoji(feel) @feel
+                    </label>
+                }
+            </div>
+        </div>
+
+        <!-- Energy: Before & After -->
+        <div class="col-6">
+            <label class="form-label fw-bold">⚡ Energy Going In</label>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach (var e in new[] { ("🔋 Fresh", "Fresh"), ("😐 Normal", "Normal"), ("🪫 Tired", "Tired") })
+                {
+                    var eid = "eb_" + e.Item2;
+                    <input class="btn-check" type="radio" name="Session.EnergyBefore" value="@e.Item2" id="@eid" autocomplete="off" />
+                    <label class="btn btn-outline-success btn-sm rounded-pill" for="@eid">@e.Item1</label>
+                }
+            </div>
+        </div>
+
+        <div class="col-6">
+            <label class="form-label fw-bold">🏁 Energy After</label>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach (var e in new[] { ("💪 Had gas", "Still had gas"), ("👌 Just right", "Just right"), ("😵 Gassed", "Completely gassed") })
+                {
+                    var eid = "ea_" + e.Item2.Replace(" ", "_");
+                    <input class="btn-check" type="radio" name="Session.EnergyAfter" value="@e.Item2" id="@eid" autocomplete="off" />
+                    <label class="btn btn-outline-success btn-sm rounded-pill" for="@eid">@e.Item1</label>
+                }
+            </div>
+        </div>
+
+        <!-- Goal Check-ins (v2 core feature) -->
+        @if (Model.ActiveGoals.Count > 0)
+        {
+            <div class="col-12">
+                <label class="form-label fw-bold">🎯 Goal Check-ins</label>
+                <p class="text-muted small mb-2">Which goals did you work on? Toggle to expand.</p>
+
+                @for (int i = 0; i < Model.ActiveGoals.Count; i++)
+                {
+                    var goal = Model.ActiveGoals[i];
+                    var checkboxId = $"goal_toggle_{goal.Id}";
+                    <input type="hidden" name="GoalCheckIns[@i].GoalId" value="@goal.Id" />
+                    <input type="hidden" name="GoalCheckIns[@i].GoalName" value="@goal.Name" />
+
+                    <div class="card mb-2 shadow-sm goal-checkin-card" id="goal_card_@goal.Id">
+                        <div class="card-body py-2">
+                            <div class="form-check form-switch d-flex align-items-center gap-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="@checkboxId"
+                                       name="GoalCheckIns[@i].WorkedOnIt" value="true"
+                                       onchange="toggleGoalDetails(@goal.Id, this.checked)" />
+                                <label class="form-check-label fw-bold" for="@checkboxId">
+                                    @goal.Name
+                                    <span class="badge bg-secondary ms-1" style="font-size: 0.7em;">@goal.Category</span>
+                                </label>
+                            </div>
+
+                            <!-- Expanded details (hidden until toggled) -->
+                            <div class="mt-2 goal-details" id="goal_details_@goal.Id" style="display: none;">
+                                <div class="row g-2">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold mb-1">How did it feel?</label>
+                                        <div class="d-flex gap-1">
+                                            @foreach (var feel in GoalFeelings.All)
+                                            {
+                                                var feelId = $"feel_{goal.Id}_{feel}";
+                                                <input class="btn-check" type="radio" name="GoalCheckIns[@i].HowItFelt"
+                                                       value="@feel" id="@feelId" autocomplete="off" />
+                                                <label class="btn btn-outline-secondary btn-sm rounded-pill" for="@feelId">
+                                                    @GoalFeelings.ToEmoji(feel) @feel
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Quick note <span class="text-muted fw-normal">(optional)</span></label>
+                                        <input type="text" name="GoalCheckIns[@i].Note" class="form-control form-control-sm"
+                                               placeholder="e.g., Worked on approach shots" maxlength="200" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="alert alert-info mb-0">
+                    🎯 <strong>No active goals yet.</strong>
+                    <a asp-page="/Goals">Create your first development goal</a> to track progress with each session.
+                </div>
+            </div>
+        }
+
+        <!-- Notes -->
+        <div class="col-12">
+            <label class="form-label fw-bold">📝 Notes (optional)</label>
+            <textarea asp-for="Session.Notes" class="form-control" rows="2" placeholder="How did it feel? Any observations?"></textarea>
+        </div>
+
+        <!-- Match Context (optional, collapsible) -->
+        <div class="col-12">
+            <a class="btn btn-outline-info btn-sm w-100" data-bs-toggle="collapse" href="#matchContext" role="button" aria-expanded="false">
+                🧠 Match Context (optional)
+            </a>
+            <div class="collapse mt-2" id="matchContext">
+                <div class="card card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">👤 Opponent Level</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var level in Model.OpponentLevelOptions)
+                            {
+                                var id = "opp_" + level.Replace(" ", "_").ToLower();
+                                <input class="btn-check" type="radio" name="Session.OpponentLevel" value="@level" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-info btn-sm rounded-pill" for="@id">@level</label>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">🎯 How I Played</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var style in Model.PlayStyleOptions)
+                            {
+                                var id = "ps_" + style.Replace("-", "_").Replace(" ", "_").ToLower();
+                                <input class="btn-check" type="radio" name="Session.PlayStyle" value="@style" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-info btn-sm rounded-pill" for="@id">@style</label>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">🧠 Mental Game</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var state in Model.MentalStateOptions)
+                            {
+                                var id = "ms_" + state.Replace(" ", "_").ToLower();
+                                <input class="btn-check" type="radio" name="Session.MentalState" value="@state" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-info btn-sm rounded-pill" for="@id">@state</label>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label fw-bold">🏆 Result</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var result in Model.MatchResultOptions)
+                            {
+                                var id = "mr_" + result.Replace("/", "").Replace(" ", "_").ToLower();
+                                <input class="btn-check" type="radio" name="Session.MatchResult" value="@result" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-info btn-sm rounded-pill" for="@id">@result</label>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legacy sections (collapsible) -->
+        <div class="col-12">
+            <a class="btn btn-outline-secondary btn-sm w-100" data-bs-toggle="collapse" href="#legacySection" role="button" aria-expanded="false">
+                📋 Breakdown Tracking & Body Detail (legacy)
+            </a>
+            <div class="collapse mt-2" id="legacySection">
+                <div class="card card-body">
+                    <!-- What Broke Down -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">🔻 What Broke Down</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var area in Model.BreakdownAreaOptions)
+                            {
+                                var id = "area_" + area.Replace(" ", "_");
+                                <input class="btn-check" type="checkbox" name="SelectedBreakdownAreas" value="@area" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-danger btn-sm rounded-pill" for="@id">@area</label>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Why It Broke Down -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">❓ Why It Broke Down</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var reason in Model.BreakdownReasonOptions)
+                            {
+                                var id = "reason_" + reason.Replace(" ", "_");
+                                <input class="btn-check" type="checkbox" name="SelectedBreakdownReasons" value="@reason" id="@id" autocomplete="off" />
+                                <label class="btn btn-outline-warning btn-sm rounded-pill" for="@id">@reason</label>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Focus Area -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-8">
+                            <label class="form-label fw-bold">🎯 Focus Area</label>
+                            <input type="text" asp-for="Session.FocusArea" class="form-control" placeholder="e.g., Footwork, Serve toss..." />
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label fw-bold">Achieved?</label>
+                            <select asp-for="Session.FocusAchieved" class="form-select">
+                                <option value="">N/A</option>
+                                <option value="true">Yes ✅</option>
+                                <option value="false">No ❌</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Body Detail -->
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">💪 Elbow Pain: <span id="elbowVal">1</span>/10</label>
+                            <input type="range" asp-for="Session.ElbowPain" class="form-range" min="1" max="10"
+                                   oninput="document.getElementById('elbowVal').textContent=this.value" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">🦴 Shoulder Tightness: <span id="shoulderVal">1</span>/10</label>
+                            <input type="range" asp-for="Session.ShoulderTightness" class="form-range" min="1" max="10"
+                                   oninput="document.getElementById('shoulderVal').textContent=this.value" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="col-12 mt-3">
+            <button type="submit" class="btn btn-success btn-lg w-100">💾 Save Session</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    function toggleGoalDetails(goalId, checked) {
+        var details = document.getElementById('goal_details_' + goalId);
+        var card = document.getElementById('goal_card_' + goalId);
+        if (checked) {
+            details.style.display = '';
+            card.classList.add('border-success');
+        } else {
+            details.style.display = 'none';
+            card.classList.remove('border-success');
+        }
+    }
+</script>

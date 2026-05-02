@@ -1,0 +1,373 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="text-center mb-3">
+    <h1 class="display-5 fw-bold text-success">🎾 Tennis Intelligence</h1>
+    @if (Model.TotalSessions > 0)
+    {
+        <p class="lead mb-0">@Model.MotivationalMessage</p>
+        @if (!string.IsNullOrEmpty(Model.EnergyTrend))
+        {
+            <small class="text-muted">@Model.EnergyTrend</small>
+        }
+    }
+    else
+    {
+        <p class="lead text-muted">Your personal tennis companion</p>
+    }
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (Model.MilestoneMessage != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show text-center fw-bold" role="alert">
+        @Model.MilestoneMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (Model.TotalSessions == 0)
+{
+    <div class="text-center py-5">
+        <div style="font-size: 4rem;">🎾</div>
+        <h3 class="mt-3">Welcome! Let's track your first session.</h3>
+        <p class="text-muted">Log a session to unlock your dashboard, insights, and AI coaching.</p>
+        <a asp-page="/LogSession" class="btn btn-success btn-lg mt-2">📝 Log Your First Session</a>
+    </div>
+}
+else
+{
+    <!-- Quick Log (Hero on mobile) -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-5 order-md-2">
+            <div class="card shadow border-success h-100">
+                <div class="card-header bg-success text-white fw-bold fs-5">⚡ Quick Log</div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="QuickLog">
+                        <!-- How was it? -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold mb-1">How was your session?</label>
+                            <div class="d-flex gap-1 justify-content-between">
+                                @{
+                                    var emojis = new[] { "😫", "😕", "😐", "🙂", "🔥" };
+                                }
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    var eid = $"qr_{i}";
+                                    <input class="btn-check" type="radio" name="QuickRating" value="@i" id="@eid" autocomplete="off" />
+                                    <label class="btn btn-outline-secondary flex-fill" for="@eid" style="font-size:1.5rem; padding: 0.25rem;">@emojis[i-1]</label>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold mb-1">Duration (min)</label>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill quick-dur" data-val="30">30</button>
+                                <button type="button" class="btn btn-success btn-sm flex-fill quick-dur active" data-val="60">60</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill quick-dur" data-val="90">90</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill quick-dur" data-val="120">120</button>
+                            </div>
+                            <input type="hidden" name="QuickDuration" id="quickDuration" value="60" />
+                        </div>
+
+                        <!-- Energy -->
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold mb-1">⚡ How fresh?</label>
+                            <div class="d-flex gap-1">
+                                <input class="btn-check" type="radio" name="QuickEnergyBefore" value="Fresh" id="qeb_fresh" autocomplete="off" />
+                                <label class="btn btn-outline-success btn-sm flex-fill" for="qeb_fresh">🔋 Fresh</label>
+                                <input class="btn-check" type="radio" name="QuickEnergyBefore" value="Normal" id="qeb_normal" autocomplete="off" checked />
+                                <label class="btn btn-outline-success btn-sm flex-fill" for="qeb_normal">😐 Normal</label>
+                                <input class="btn-check" type="radio" name="QuickEnergyBefore" value="Tired" id="qeb_tired" autocomplete="off" />
+                                <label class="btn btn-outline-success btn-sm flex-fill" for="qeb_tired">🪫 Tired</label>
+                            </div>
+                        </div>
+
+                        <!-- What broke down (optional pills) -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold mb-1">What broke down? <span class="text-muted fw-normal">(optional)</span></label>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var area in Model.BreakdownAreaOptions)
+                                {
+                                    var bid = "qb_" + area;
+                                    <input class="btn-check" type="checkbox" name="QuickBreakdowns" value="@area" id="@bid" autocomplete="off" />
+                                    <label class="btn btn-outline-danger btn-sm rounded-pill" for="@bid">@area</label>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold btn-lg">🎾 I Played Today!</button>
+                    </form>
+                    <hr class="my-2" />
+                    <a asp-page="/LogSession" class="btn btn-outline-secondary btn-sm w-100">📝 Full Detailed Log</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats + Weekly Goal -->
+        <div class="col-12 col-md-7 order-md-1">
+            <!-- Weekly Goal Progress -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">📅 Weekly Goal</span>
+                        <span class="fw-bold @(Model.ThisWeekCount >= Model.WeeklyGoal ? "text-success" : "text-primary")">
+                            @Model.ThisWeekCount / @Model.WeeklyGoal sessions
+                            @(Model.ThisWeekCount >= Model.WeeklyGoal ? "✅" : "")
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 12px;">
+                        @{
+                            var goalPct = Math.Min(100, (int)(100.0 * Model.ThisWeekCount / Model.WeeklyGoal));
+                        }
+                        <div class="progress-bar @(Model.ThisWeekCount >= Model.WeeklyGoal ? "bg-success" : "bg-primary")"
+                             style="width: @goalPct%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stat Cards -->
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="card shadow-sm text-center h-100">
+                        <div class="card-body">
+                            <div style="font-size: 2rem;">🔥</div>
+                            <h2 class="fw-bold text-danger mb-0">@Model.CurrentStreak</h2>
+                            <small class="text-muted">Session Streak</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card shadow-sm text-center h-100">
+                        <div class="card-body">
+                            <div style="font-size: 2rem;">📊</div>
+                            <h2 class="fw-bold text-primary mb-0">@Model.TotalSessions</h2>
+                            <small class="text-muted">Total Sessions</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card shadow-sm text-center h-100">
+                        <div class="card-body">
+                            <div style="font-size: 2rem;">⚡</div>
+                            <h2 class="fw-bold text-warning mb-0">@Model.AvgEnergy.ToString("F1")</h2>
+                            <small class="text-muted">Avg Energy</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card shadow-sm text-center h-100">
+                        <div class="card-body">
+                            <div style="font-size: 2rem;">🎯</div>
+                            <h2 class="fw-bold text-info mb-0">@Model.ActiveGoalCount</h2>
+                            <small class="text-muted">Active Goals</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trends Chart + Focus -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📈 Session Trends</span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="showBodyChart" />
+                        <label class="form-check-label small text-muted" for="showBodyChart">Body data</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendsChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">🎯 Focus & Progress</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span>🎯 Focus Achievement</span>
+                        @if (Model.FocusTotalCount > 0)
+                        {
+                            var pct = (int)(100.0 * Model.FocusAchievedCount / Model.FocusTotalCount);
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    <div class="progress-bar bg-success" style="width: @(pct)%"></div>
+                                </div>
+                                <span class="fw-bold">@pct%</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted small mt-1">No focus data yet</div>
+                        }
+                    </div>
+                    <hr />
+                    <!-- Collapsible Body Snapshot -->
+                    <div>
+                        <a class="text-decoration-none text-muted small" data-bs-toggle="collapse" href="#bodySnapshot" role="button">
+                            🩺 Body Check ▾
+                        </a>
+                        <div class="collapse mt-2" id="bodySnapshot">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span class="small">💪 Elbow Pain</span>
+                                    <span class="fw-bold small @(Model.AvgElbowPain <= 3 ? "text-success" : Model.AvgElbowPain <= 6 ? "text-warning" : "text-danger")">@Model.AvgElbowPain.ToString("F1")/10</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar @(Model.AvgElbowPain <= 3 ? "bg-success" : Model.AvgElbowPain <= 6 ? "bg-warning" : "bg-danger")" style="width: @(Model.AvgElbowPain * 10)%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="small">🦴 Shoulder</span>
+                                    <span class="fw-bold small @(Model.AvgShoulderTightness <= 3 ? "text-success" : Model.AvgShoulderTightness <= 6 ? "text-warning" : "text-danger")">@Model.AvgShoulderTightness.ToString("F1")/10</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar @(Model.AvgShoulderTightness <= 3 ? "bg-success" : Model.AvgShoulderTightness <= 6 ? "bg-warning" : "bg-danger")" style="width: @(Model.AvgShoulderTightness * 10)%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">🕐 Recent Sessions</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Rating</th>
+                            <th>⚡ Energy</th>
+                            <th>🎯 Focus</th>
+                            <th>Breakdowns</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var ratingEmojis = new Dictionary<int, string>
+                            {
+                                {1, "😫"}, {2, "😕"}, {3, "😐"}, {4, "🙂"}, {5, "🔥"}
+                            };
+                        }
+                        @foreach (var s in Model.RecentSessions)
+                        {
+                            <tr>
+                                <td>@s.Date.ToString("MMM dd")</td>
+                                <td>@s.DurationMinutes min</td>
+                                <td>
+                                    @if (s.SessionRating.HasValue && ratingEmojis.ContainsKey(s.SessionRating.Value))
+                                    { <span style="font-size:1.2rem;">@ratingEmojis[s.SessionRating.Value]</span> }
+                                    else { <span class="text-muted">—</span> }
+                                </td>
+                                <td>
+                                    <span class="badge @(s.EnergyLevel >= 7 ? "bg-success" : s.EnergyLevel >= 4 ? "bg-warning text-dark" : "bg-danger")">
+                                        @s.EnergyLevel/10
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (s.FocusAchieved == true) { <span>✅</span> }
+                                    else if (s.FocusAchieved == false) { <span>❌</span> }
+                                    else { <span class="text-muted">—</span> }
+                                </td>
+                                <td class="small text-muted">@(string.IsNullOrEmpty(s.BreakdownAreas) ? "—" : s.BreakdownAreas)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.TotalSessions > 0)
+{
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        var elbowData = {
+            label: 'Elbow Pain',
+            data: @Html.Raw(Model.ChartElbow),
+            borderColor: '#dc3545',
+            borderDash: [5, 5],
+            tension: 0.3,
+            fill: false,
+            hidden: true
+        };
+        var shoulderData = {
+            label: 'Shoulder',
+            data: @Html.Raw(Model.ChartShoulder),
+            borderColor: '#0d6efd',
+            borderDash: [5, 5],
+            tension: 0.3,
+            fill: false,
+            hidden: true
+        };
+        var chart = new Chart(document.getElementById('trendsChart'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(Model.ChartLabels),
+                datasets: [
+                    {
+                        label: 'Energy',
+                        data: @Html.Raw(Model.ChartEnergy),
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255,193,7,0.1)',
+                        tension: 0.3,
+                        fill: true
+                    },
+                    elbowData,
+                    shoulderData
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { min: 0, max: 10, ticks: { stepSize: 2 } }
+                }
+            }
+        });
+
+        document.getElementById('showBodyChart').addEventListener('change', function() {
+            chart.data.datasets[1].hidden = !this.checked;
+            chart.data.datasets[2].hidden = !this.checked;
+            chart.update();
+        });
+    </script>
+    <script>
+        document.querySelectorAll('.quick-dur').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.quick-dur').forEach(function(b) {
+                    b.classList.remove('btn-success', 'active');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-success', 'active');
+                document.getElementById('quickDuration').value = this.getAttribute('data-val');
+            });
+        });
+    </script>
+}

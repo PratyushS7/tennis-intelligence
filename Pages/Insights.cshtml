@@ -1,0 +1,284 @@
+@page
+@model TennisIntelligence.Pages.InsightsModel
+@{
+    ViewData["Title"] = "Insights";
+
+    string RatingEmoji(int? rating) => rating switch
+    {
+        1 => "😫",
+        2 => "😕",
+        3 => "😐",
+        4 => "🙂",
+        5 => "🔥",
+        _ => "—"
+    };
+}
+
+<h2>📊 Insights Dashboard</h2>
+
+@if (Model.TotalSessions == 0)
+{
+    <div class="alert alert-info mt-3">
+        No data yet. <a asp-page="/LogSession">Log some sessions</a> to see insights!
+    </div>
+}
+else
+{
+    <!-- Summary Cards -->
+    <div class="row g-3 mt-2">
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="text-success">@Model.TotalSessions</h3>
+                    <small class="text-muted">Total Sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="text-primary">@Model.AverageEnergy.ToString("F1")</h3>
+                    <small class="text-muted">Avg Energy</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="text-success">@Model.CurrentStreak</h3>
+                    <small class="text-muted">Current Streak</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="text-primary">@Model.LongestStreak</h3>
+                    <small class="text-muted">Longest Streak</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collapsible Body Data cards -->
+    <div class="mt-3">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#bodyDataSection">
+            🩺 Body Data
+        </button>
+        <div class="collapse mt-2" id="bodyDataSection">
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="card text-center shadow-sm">
+                        <div class="card-body">
+                            <h3 class="text-warning">@Model.AverageElbowPain.ToString("F1")</h3>
+                            <small class="text-muted">Avg Elbow Pain</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card text-center shadow-sm">
+                        <div class="card-body">
+                            <h3 class="text-danger">@Model.AverageShoulderTightness.ToString("F1")</h3>
+                            <small class="text-muted">Avg Shoulder</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Focus Achievement + Time on Court -->
+    <div class="row g-3 mt-2">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5>🎯 Focus Achievement Rate</h5>
+                    @if (Model.FocusTotal > 0)
+                    {
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" style="width: @Model.FocusAchievedPct%">
+                                @Model.FocusAchievedPct% achieved
+                            </div>
+                        </div>
+                        <small class="text-muted">@Model.FocusAchievedCount / @Model.FocusTotal sessions with focus</small>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No focus data recorded yet</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5>⏱️ Total Time on Court</h5>
+                    <h3>@Model.TotalMinutes min</h3>
+                    <small class="text-muted">~@((Model.TotalMinutes / 60.0).ToString("F1")) hours</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Best Sessions -->
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <h5>⭐ Your Best Sessions</h5>
+            @if (Model.BestSessions.Any())
+            {
+                <p class="text-muted mb-2">@Model.BestSessionCommonFactors</p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Rating</th>
+                                <th>Energy</th>
+                                <th>Type</th>
+                                <th>Focus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.BestSessions)
+                            {
+                                <tr>
+                                    <td>@s.Date.ToString("MMM dd")</td>
+                                    <td>@RatingEmoji(s.SessionRating)</td>
+                                    <td>@s.EnergyLevel/10</td>
+                                    <td>@(s.SessionType ?? "—")</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(s.FocusArea))
+                                        {
+                                            @s.FocusArea
+                                            @if (s.FocusAchieved == true) { <span>✅</span> }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No sessions rated 4+ yet. Rate your sessions to see patterns!</p>
+            }
+        </div>
+    </div>
+
+    <!-- Breakdown Areas -->
+    <div class="row g-3 mt-2">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5>🔻 Most Common Breakdown Areas</h5>
+                    @if (Model.BreakdownAreaCounts.Any())
+                    {
+                        @foreach (var item in Model.BreakdownAreaCounts)
+                        {
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span>@item.Key</span>
+                                    <span class="text-muted">@item.Value times (@((100.0 * item.Value / Model.TotalSessions).ToString("F0"))%)</span>
+                                </div>
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-danger" style="width: @((100.0 * item.Value / Model.TotalSessions).ToString("F0"))%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">No breakdown data</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5>❓ Most Common Reasons</h5>
+                    @if (Model.BreakdownReasonCounts.Any())
+                    {
+                        @foreach (var item in Model.BreakdownReasonCounts)
+                        {
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span>@item.Key</span>
+                                    <span class="text-muted">@item.Value times (@((100.0 * item.Value / Model.TotalSessions).ToString("F0"))%)</span>
+                                </div>
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-warning" style="width: @((100.0 * item.Value / Model.TotalSessions).ToString("F0"))%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">No reason data</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Summary -->
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <h5>📅 Weekly Summary (Last 4 Weeks)</h5>
+            @if (Model.WeeklySummaries.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Week Of</th>
+                                <th>Sessions</th>
+                                <th>Avg Energy</th>
+                                <th class="body-data-col" style="display:none;">Avg Elbow</th>
+                                <th class="body-data-col" style="display:none;">Avg Shoulder</th>
+                                <th>Total Min</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var week in Model.WeeklySummaries)
+                            {
+                                <tr>
+                                    <td>@week.WeekStart.ToString("MMM dd")</td>
+                                    <td>@week.Count</td>
+                                    <td>@week.AvgEnergy.ToString("F1")</td>
+                                    <td class="body-data-col" style="display:none;">@week.AvgElbow.ToString("F1")</td>
+                                    <td class="body-data-col" style="display:none;">@week.AvgShoulder.ToString("F1")</td>
+                                    <td>@week.TotalMinutes</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Not enough data for weekly summaries</p>
+            }
+        </div>
+    </div>
+}
+
+<script>
+    // Sync weekly summary body-data columns with the Body Data collapse toggle
+    var bodySection = document.getElementById('bodyDataSection');
+    if (bodySection) {
+        bodySection.addEventListener('shown.bs.collapse', function () {
+            document.querySelectorAll('.body-data-col').forEach(function (el) { el.style.display = ''; });
+        });
+        bodySection.addEventListener('hidden.bs.collapse', function () {
+            document.querySelectorAll('.body-data-col').forEach(function (el) { el.style.display = 'none'; });
+        });
+    }
+</script>
