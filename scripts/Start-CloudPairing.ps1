@@ -9,16 +9,26 @@ $connectorKeyPath = Join-Path $env:APPDATA "TennisTracker\connector-key.txt"
 if (-not (Test-Path $connectorKeyPath)) {
     throw "The connector key is not configured locally."
 }
+$databasePath = Join-Path $env:APPDATA "TennisTracker\neon-connection.txt"
+if (-not (Test-Path $databasePath)) {
+    throw "The Neon connection is not configured locally."
+}
 
 $secureKey = Get-Content $connectorKeyPath | ConvertTo-SecureString
 $connectorKey = [System.Net.NetworkCredential]::new("", $secureKey).Password
 if ([string]::IsNullOrWhiteSpace($connectorKey)) {
     throw "The stored connector key could not be decrypted."
 }
+$secureDatabase = Get-Content $databasePath | ConvertTo-SecureString
+$databaseUrl = [System.Net.NetworkCredential]::new("", $secureDatabase).Password
+if ([string]::IsNullOrWhiteSpace($databaseUrl)) {
+    throw "The stored Neon connection could not be decrypted."
+}
 
 $project = (Resolve-Path $ProjectPath).Path
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 $env:ASPNETCORE_URLS = "http://127.0.0.1:5082"
+$env:DATABASE_URL = $databaseUrl
 $env:Connector__ApiKey = $connectorKey
 $env:Connector__PairingServerUrl = $ServerUrl.TrimEnd('/')
 
