@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TennisIntelligence.Models;
 
-public class InteractionLog
+public sealed class InteractionLog
 {
     public int Id { get; set; }
 
@@ -29,6 +29,7 @@ public static class PageNames
     public const string Coach = "Coach";
     public const string Goals = "Goals";
     public const string GoalDetail = "GoalDetail";
+    public const string Imports = "Imports";
 }
 
 public static class InteractionActions
@@ -49,4 +50,5 @@ public static class InteractionActions
     public const string GoalCompleted = "GoalCompleted";
     public const string GoalArchived = "GoalArchived";
     public const string GoalCheckInLogged = "GoalCheckInLogged";
+    public const string WearableDataImported = "WearableDataImported";
 }

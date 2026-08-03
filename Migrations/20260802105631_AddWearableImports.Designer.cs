@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TennisIntelligence.Data;
@@ -11,9 +12,11 @@ using TennisIntelligence.Data;
 namespace TennisIntelligence.Migrations
 {
     [DbContext(typeof(TennisDbContext))]
-    partial class TennisDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802105631_AddWearableImports")]
+    partial class AddWearableImports
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,138 +65,6 @@ namespace TennisIntelligence.Migrations
                     b.ToTable("DevelopmentGoals");
                 });
 
-            modelBuilder.Entity("TennisIntelligence.Models.ExternalBodyMeasurement", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal?>("BodyFatPercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<int>("LastImportBatchId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("MeasuredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RawPayload")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("SourceApplication")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTimeOffset?>("SourceLastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SourceRecordId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<decimal?>("WeightKg")
-                        .HasPrecision(8, 3)
-                        .HasColumnType("numeric(8,3)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LastImportBatchId");
-
-                    b.HasIndex("MeasuredAt");
-
-                    b.HasIndex("Source", "SourceRecordId")
-                        .IsUnique();
-
-                    b.ToTable("ExternalBodyMeasurements");
-                });
-
-            modelBuilder.Entity("TennisIntelligence.Models.ExternalDailySummary", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal?>("ActiveCaloriesKcal")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
-
-                    b.Property<int?>("AwakeMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("DeepSleepMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("DistanceMeters")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)");
-
-                    b.Property<decimal?>("HeartRateVariabilityRmssdMs")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("numeric(8,2)");
-
-                    b.Property<int>("LastImportBatchId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("LightSleepMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("OxygenSaturationPercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<string>("RawPayload")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<int?>("RemSleepMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("RestingHeartRateBpm")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("SleepDurationMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset?>("SourceExportedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("Steps")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateOnly>("SummaryDate")
-                        .HasColumnType("date");
-
-                    b.Property<decimal?>("TotalCaloriesKcal")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LastImportBatchId");
-
-                    b.HasIndex("Source", "SummaryDate")
-                        .IsUnique();
-
-                    b.ToTable("ExternalDailySummaries");
-                });
-
             modelBuilder.Entity("TennisIntelligence.Models.ExternalWorkout", b =>
                 {
                     b.Property<int>("Id")
@@ -221,20 +92,10 @@ namespace TennisIntelligence.Migrations
                     b.Property<DateTimeOffset>("EndedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("HeartRateSampleCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("HeartRateSamples")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
                     b.Property<int>("LastImportBatchId")
                         .HasColumnType("integer");
 
                     b.Property<int?>("MaxHeartRateBpm")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("MinHeartRateBpm")
                         .HasColumnType("integer");
 
                     b.Property<string>("RawPayload")
@@ -475,28 +336,6 @@ namespace TennisIntelligence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Sessions");
-                });
-
-            modelBuilder.Entity("TennisIntelligence.Models.ExternalBodyMeasurement", b =>
-                {
-                    b.HasOne("TennisIntelligence.Models.ImportBatch", "LastImportBatch")
-                        .WithMany()
-                        .HasForeignKey("LastImportBatchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("LastImportBatch");
-                });
-
-            modelBuilder.Entity("TennisIntelligence.Models.ExternalDailySummary", b =>
-                {
-                    b.HasOne("TennisIntelligence.Models.ImportBatch", "LastImportBatch")
-                        .WithMany()
-                        .HasForeignKey("LastImportBatchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("LastImportBatch");
                 });
 
             modelBuilder.Entity("TennisIntelligence.Models.ExternalWorkout", b =>

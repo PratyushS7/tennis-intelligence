@@ -30,3 +30,7 @@ dotnet-tools.json
 # Logs
 logs/
 *.log
+
+# Database backups
+backups/
+*.dump

@@ -1,0 +1,331 @@
+@page
+@model TennisIntelligence.Pages.ImportsModel
+@{
+    ViewData["Title"] = "Wearable Imports";
+}
+
+<h2>⌚ Connected Training Data</h2>
+<p class="text-muted">
+    The Android connector reads Samsung Health-compatible workouts through Health Connect and synchronizes them automatically.
+</p>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <h4 class="card-title mb-1">Live phone connector</h4>
+                @if (Model.LatestConnectorImport is null)
+                {
+                    <span class="badge bg-warning text-dark">Waiting for first sync</span>
+                }
+                else
+                {
+                    <span class="badge bg-success">Connected</span>
+                    <div class="text-muted small mt-2">
+                        Last sync: @Model.LatestConnectorImport.ImportedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                    </div>
+                }
+            </div>
+            <span style="font-size:2rem;">📱</span>
+        </div>
+
+        @if (Model.PairingQrCodeDataUri is not null && Model.PairingUri is not null)
+        {
+            <div class="row align-items-center g-3 mt-2">
+                <div class="col-auto">
+                    <img src="@Model.PairingQrCodeDataUri"
+                         width="192"
+                         height="192"
+                         alt="Private connector pairing QR code"
+                         class="border rounded" />
+                </div>
+                <div class="col">
+                    <h5>Pair this phone once</h5>
+                    <ol class="mb-2">
+                        <li>Install Tailscale and Training Intelligence Connector on the phone.</li>
+                        <li>Join the same private tailnet and scan this code with the phone camera.</li>
+                        <li>Grant Health Connect access, run the first sync, then enable automatic sync.</li>
+                    </ol>
+                    <a class="btn btn-success" href="@Model.PairingUri">Open connector on this device</a>
+                    <div class="form-text">
+                        The QR code contains the private server address and connector key. Do not share it.
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info mt-3 mb-3">
+                Run <code>scripts\Start-CloudPairing.ps1</code> locally to display a one-time
+                QR code for the cloud connector without exposing its secret publicly.
+            </div>
+        }
+
+        <div class="small text-muted">Connector endpoint</div>
+        <code class="d-block bg-light border rounded p-2 text-break">@Model.ConnectorEndpoint</code>
+        <div class="form-text">
+            The HTTPS cloud endpoint is reachable from any network. Automatic sync runs
+            approximately every six hours when supported by the device.
+        </div>
+    </div>
+</div>
+
+@if (Model.ImportResult is not null)
+{
+    var batch = Model.ImportResult.Batch;
+    <div class="alert @(batch.RejectedRecords == 0 ? "alert-success" : "alert-warning")">
+        <strong>Import @batch.Status.ToLowerInvariant().</strong>
+        @batch.InsertedRecords inserted,
+        @batch.UpdatedRecords updated,
+        @batch.UnchangedRecords unchanged,
+        @batch.RejectedRecords rejected.
+    </div>
+
+    @if (Model.ImportResult.Errors.Count > 0)
+    {
+        <div class="card border-warning mb-4">
+            <div class="card-header">Rejected records</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var error in Model.ImportResult.Errors.Take(20))
+                {
+                    <li class="list-group-item">@error</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+<details class="mb-4" open="@(!ViewData.ModelState.IsValid ? "open" : null)">
+    <summary class="fw-semibold">Manual file import fallback</summary>
+    <div class="card card-body mt-2">
+        <form method="post" enctype="multipart/form-data">
+            <label asp-for="Upload" class="form-label fw-semibold">Connector JSON file</label>
+            <input asp-for="Upload" class="form-control" accept=".json,application/json" />
+            <span asp-validation-for="Upload" class="text-danger"></span>
+            <div class="form-text">Maximum size: 10 MB. Current schema version: 2; version 1 remains supported.</div>
+            <button type="submit" class="btn btn-outline-success mt-3">Import file</button>
+        </form>
+    </div>
+</details>
+
+<details class="mb-4">
+    <summary class="fw-semibold">Version 2 package example</summary>
+    <pre class="bg-light border rounded p-3 mt-2 overflow-auto"><code>{
+  "schemaVersion": 2,
+  "source": "HealthConnect",
+  "exportedAt": "2026-08-02T10:30:00Z",
+  "workouts": [
+    {
+      "sourceRecordId": "workout-123",
+      "sourceApplication": "Samsung Health",
+      "activityType": "Tennis",
+      "startedAt": "2026-08-02T06:30:00+05:30",
+      "endedAt": "2026-08-02T07:45:00+05:30",
+      "lastModifiedAt": "2026-08-02T08:00:00+05:30",
+      "distanceMeters": 3200,
+      "caloriesKcal": 610,
+      "minHeartRateBpm": 92,
+      "averageHeartRateBpm": 138,
+      "maxHeartRateBpm": 174,
+      "heartRateSamples": [
+        { "time": "2026-08-02T06:45:00+05:30", "beatsPerMinute": 138 }
+      ]
+    }
+  ],
+  "dailySummaries": [
+    {
+      "date": "2026-08-02",
+      "steps": 9500,
+      "heartRateVariabilityRmssdMs": 48.2,
+      "sleepDurationMinutes": 445,
+      "deepSleepMinutes": 90,
+      "remSleepMinutes": 110
+    }
+  ],
+  "bodyMeasurements": [
+    {
+      "sourceRecordId": "weight-123",
+      "sourceApplication": "Samsung Health",
+      "measuredAt": "2026-08-02T06:00:00+05:30",
+      "lastModifiedAt": "2026-08-02T06:00:00+05:30",
+      "weightKg": 72.5
+    }
+  ]
+}</code></pre>
+</details>
+
+<h4>Recent imports</h4>
+@if (Model.RecentImports.Count == 0)
+{
+    <p class="text-muted">No wearable packages imported yet.</p>
+}
+else
+{
+    <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Imported</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Results</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var batch in Model.RecentImports)
+                {
+                    <tr>
+                        <td>@batch.ImportedAt.ToLocalTime().ToString("MMM dd, HH:mm")</td>
+                        <td>@batch.Source</td>
+                        <td>@batch.Status</td>
+                        <td>
+                            +@batch.InsertedRecords /
+                            ~@batch.UpdatedRecords /
+                            =@batch.UnchangedRecords /
+                            !@batch.RejectedRecords
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h4>Recent wearable workouts</h4>
+@if (Model.RecentWorkouts.Count == 0)
+{
+    <p class="text-muted">Imported workouts will appear here.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 g-2">
+        @foreach (var workout in Model.RecentWorkouts)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>@workout.ActivityType</strong>
+                            <span>@((workout.EndedAt - workout.StartedAt).TotalMinutes.ToString("0")) min</span>
+                        </div>
+                        <div class="text-muted small">@workout.StartedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</div>
+                        <div class="mt-1">
+                            @if (workout.DistanceMeters.HasValue)
+                            {
+                                <span class="me-3">📍 @((workout.DistanceMeters.Value / 1000).ToString("0.00")) km</span>
+                            }
+                            @if (workout.AverageHeartRateBpm.HasValue)
+                            {
+                                <span>❤️ @workout.AverageHeartRateBpm bpm</span>
+                            }
+                        </div>
+                        @if (workout.HeartRateSampleCount > 0)
+                        {
+                            <div class="small text-muted mt-1">
+                                Heart-rate timeline: @workout.HeartRateSampleCount samples
+                                @if (workout.MinHeartRateBpm.HasValue && workout.MaxHeartRateBpm.HasValue)
+                                {
+                                    <span>(@workout.MinHeartRateBpm–@workout.MaxHeartRateBpm bpm)</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<h4 class="mt-4">Daily recovery and activity</h4>
+@if (Model.RecentDailySummaries.Count == 0)
+{
+    <p class="text-muted">Rich daily summaries will appear after a schema version 2 import.</p>
+}
+else
+{
+    <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Activity</th>
+                    <th>Recovery</th>
+                    <th>Sleep</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var summary in Model.RecentDailySummaries)
+                {
+                    <tr>
+                        <td>@summary.SummaryDate.ToString("MMM dd")</td>
+                        <td>
+                            @if (summary.Steps.HasValue)
+                            {
+                                <span>@summary.Steps.Value.ToString("N0") steps</span>
+                            }
+                            @if (summary.ActiveCaloriesKcal.HasValue)
+                            {
+                                <span class="d-block">@summary.ActiveCaloriesKcal.Value.ToString("0") active kcal</span>
+                            }
+                        </td>
+                        <td>
+                            @if (summary.RestingHeartRateBpm.HasValue)
+                            {
+                                <span>RHR @summary.RestingHeartRateBpm bpm</span>
+                            }
+                            @if (summary.HeartRateVariabilityRmssdMs.HasValue)
+                            {
+                                <span class="d-block">HRV @summary.HeartRateVariabilityRmssdMs.Value.ToString("0.0") ms</span>
+                            }
+                            @if (summary.OxygenSaturationPercent.HasValue)
+                            {
+                                <span class="d-block">SpO₂ @summary.OxygenSaturationPercent.Value.ToString("0.0")%</span>
+                            }
+                        </td>
+                        <td>
+                            @if (summary.SleepDurationMinutes.HasValue)
+                            {
+                                <span>@(summary.SleepDurationMinutes.Value / 60)h @(summary.SleepDurationMinutes.Value % 60)m</span>
+                                <span class="d-block small text-muted">
+                                    Deep @summary.DeepSleepMinutes min · REM @summary.RemSleepMinutes min
+                                </span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h4>Recent body measurements</h4>
+@if (Model.RecentBodyMeasurements.Count == 0)
+{
+    <p class="text-muted">Weight and body-composition records will appear here when available.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Measured</th>
+                    <th>Source</th>
+                    <th>Weight</th>
+                    <th>Body fat</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var measurement in Model.RecentBodyMeasurements)
+                {
+                    <tr>
+                        <td>@measurement.MeasuredAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                        <td>@measurement.SourceApplication</td>
+                        <td>@(measurement.WeightKg?.ToString("0.0") ?? "—") kg</td>
+                        <td>@(measurement.BodyFatPercent?.ToString("0.0") ?? "—")%</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

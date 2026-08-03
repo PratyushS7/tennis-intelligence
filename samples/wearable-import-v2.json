@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "source": "HealthConnect",
+  "exportedAt": "2026-08-03T00:00:00Z",
+  "workouts": [
+    {
+      "sourceRecordId": "rich-tennis-123",
+      "sourceApplication": "com.sec.android.app.shealth",
+      "activityType": "Tennis",
+      "startedAt": "2026-08-02T01:00:00Z",
+      "endedAt": "2026-08-02T02:15:00Z",
+      "lastModifiedAt": "2026-08-02T03:00:00Z",
+      "distanceMeters": 3200.5,
+      "caloriesKcal": 610,
+      "minHeartRateBpm": 92,
+      "averageHeartRateBpm": 138,
+      "maxHeartRateBpm": 174,
+      "heartRateSamples": [
+        {
+          "time": "2026-08-02T01:15:00Z",
+          "beatsPerMinute": 124
+        },
+        {
+          "time": "2026-08-02T01:45:00Z",
+          "beatsPerMinute": 151
+        }
+      ]
+    }
+  ],
+  "dailySummaries": [
+    {
+      "date": "2026-08-02",
+      "steps": 9500,
+      "activeCaloriesKcal": 720,
+      "totalCaloriesKcal": 2350,
+      "distanceMeters": 7200,
+      "restingHeartRateBpm": 54,
+      "heartRateVariabilityRmssdMs": 48.2,
+      "oxygenSaturationPercent": 97.5,
+      "sleepDurationMinutes": 445,
+      "awakeMinutes": 25,
+      "lightSleepMinutes": 220,
+      "deepSleepMinutes": 90,
+      "remSleepMinutes": 110
+    }
+  ],
+  "bodyMeasurements": [
+    {
+      "sourceRecordId": "weight-123",
+      "sourceApplication": "com.sec.android.app.shealth",
+      "measuredAt": "2026-08-02T00:30:00Z",
+      "lastModifiedAt": "2026-08-02T00:30:00Z",
+      "weightKg": 72.5
+    },
+    {
+      "sourceRecordId": "body-fat-123",
+      "sourceApplication": "com.sec.android.app.shealth",
+      "measuredAt": "2026-08-02T00:30:00Z",
+      "lastModifiedAt": "2026-08-02T00:30:00Z",
+      "bodyFatPercent": 17.8
+    }
+  ]
+}

@@ -20,6 +20,7 @@ public sealed class InteractionLoggingFilter : IAsyncPageFilter
         ["/Coach"] = PageNames.Coach,
         ["/Goals"] = PageNames.Goals,
         ["/GoalDetail"] = PageNames.GoalDetail,
+        ["/Imports"] = PageNames.Imports,
     };
 
     public Task OnPageHandlerSelectionAsync(PageHandlerSelectedContext context) => Task.CompletedTask;

@@ -78,6 +78,58 @@ Tennis Intelligence follows a **goal-centric development loop**:
 - Semantic action tracking (sessions logged, goals created, coach questions)
 - Usage data feeds into AI coaching for personalized engagement nudges
 
+### ⌚ Wearable Imports
+- Imports versioned JSON packages produced by phone and file connectors
+- Preserves source identity and raw payloads
+- Safely handles repeated imports through source-record upserts
+- Reports inserted, updated, unchanged, and rejected records
+- Supports workout heart-rate timelines, daily activity/recovery/sleep summaries, and body measurements
+- Test packages are available at `samples/wearable-import-v1.json` and `samples/wearable-import-v2.json`
+
+### Android connector API
+
+The native companion app is in `../AndroidConnector`. It reads Samsung Health-compatible tennis workouts through Health Connect and sends the same package to:
+
+```text
+POST /api/connectors/workouts
+X-Connector-Key: <configured key>
+```
+
+Configure the key through an environment variable rather than source control:
+
+```powershell
+$env:Connector__ApiKey = "generate-a-long-random-value"
+$env:ASPNETCORE_URLS = "http://0.0.0.0:5082"
+dotnet run --no-launch-profile
+```
+
+Binding to `0.0.0.0` allows a physical phone on the same network to connect. The connector permits plain HTTP only in debug builds; release builds require HTTPS.
+
+Open `AndroidConnector` in Android Studio, grant the requested Health Connect permissions, and enter this computer's LAN URL plus the configured connector key. See `AndroidConnector/README.md` for full setup details.
+
+### Durable cloud database and backups
+
+Production uses a Neon PostgreSQL connection supplied through `DATABASE_URL`; no database
+credentials are committed. After authenticating the Neon CLI and selecting the project, run:
+
+```powershell
+.\scripts\Configure-NeonBackup.ps1
+```
+
+This stores the connection URL encrypted with Windows DPAPI for the current user, creates an
+initial PostgreSQL custom-format backup, and registers a daily backup task. Backups are written
+to `OneDrive\TennisTrackerBackups` when OneDrive is available, otherwise to
+`Documents\TennisTrackerBackups`.
+
+To pair the Android connector without copying the cloud connector key, run:
+
+```powershell
+.\scripts\Start-CloudPairing.ps1
+```
+
+Scan the local QR page with the phone camera. The QR targets the production HTTPS service while
+the connector secret remains available only in the local process and Android encrypted storage.
+
 ## Tech Stack
 
 - **Backend**: ASP.NET Core 10 (Razor Pages)
