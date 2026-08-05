@@ -37,6 +37,32 @@ Session
 InteractionLog
 ├── Id, PageName, Action, Metadata, Timestamp
 └── (indexes on Timestamp and Action+Timestamp)
+
+ImportBatch
+├── Source, FileName, SchemaVersion
+├── ExportedAt, ImportedAt, Status
+└── Inserted, Updated, Unchanged, Rejected counts
+
+ExternalWorkout
+├── Source + SourceRecordId — unique source identity
+├── SourceApplication, ActivityType
+├── StartedAt, EndedAt, SourceLastModifiedAt
+├── Distance, calories, min/average/max heart rate
+├── HeartRateSamples — detailed workout timeline
+├── RawPayload — versioned source evidence
+└── LastImportBatchId ──→ ImportBatch
+
+ExternalDailySummary
+├── Source + SummaryDate — unique daily identity
+├── Steps, active/total calories, distance
+├── Resting heart rate, HRV, oxygen saturation, VO2 max
+├── Sleep duration and awake/light/deep/REM minutes
+└── RawPayload + LastImportBatchId
+
+ExternalBodyMeasurement
+├── Source + SourceRecordId — unique source identity
+├── MeasuredAt, WeightKg, BodyFatPercent
+└── RawPayload + LastImportBatchId
 ```
 
 ### Key Relationships
@@ -55,6 +81,14 @@ InteractionLog
 **Why GoalCheckIn.SessionId is required (not nullable)?** A check-in represents work done on a goal during a specific session. Standalone reflections (outside sessions) are a different concept and would get a separate model if needed later.
 
 **Why constrained string values instead of enums?** C# enums map to integers in PostgreSQL, which makes the database harder to read directly. String constants with static classes (e.g., `GoalCategories.Technique`, `GoalFeelings.Clicked`) keep the DB human-readable while preventing typo drift at compile time.
+
+**Why keep wearable workouts separate from tennis sessions?** A tennis session is a subjective reflection, while an external workout is imported sensor evidence. Keeping them separate preserves provenance and allows a later linking workflow without making either record dependent on the other.
+
+**Why retain the raw wearable payload?** Connector mappings will evolve as Samsung, Health Connect, and file formats change. Retaining the versioned source record allows corrected mappings and derived metrics to be rebuilt without re-exporting the original data.
+
+**Why use Health Connect as the primary connector?** It provides one permission and schema layer across Samsung Health and other Android health sources. Schema version 2 preserves source identifiers, stores detailed workout heart-rate samples, and adds daily recovery/activity context. Source-aware upserts prevent repeated exports from duplicating records.
+
+**Why is Samsung Health Data SDK optional?** Samsung-only values such as Energy Score and sleep score require Samsung's authenticated SDK download and developer mode for a personal debug build. The AAR is not stored in this repository; it must be downloaded under the user's Samsung Developer account and its SDK terms.
 
 ## Service Architecture
 

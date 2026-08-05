@@ -6,7 +6,7 @@ using TennisIntelligence.Services;
 
 namespace TennisIntelligence.Pages;
 
-public class CoachModel : PageModel
+public sealed class CoachModel : PageModel
 {
     private readonly CoachService _coach;
     private readonly InteractionService _interaction;

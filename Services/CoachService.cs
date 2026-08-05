@@ -4,19 +4,21 @@ using TennisIntelligence.Models;
 
 namespace TennisIntelligence.Services;
 
-public class CoachService
+public sealed class CoachService
 {
     private readonly TennisDbContext _db;
     private readonly OllamaCoachProvider _ollama;
     private readonly RuleBasedCoachProvider _ruleBased;
     private readonly InteractionService _interaction;
+    private readonly ILogger<CoachService> _logger;
 
-    public CoachService(TennisDbContext db, OllamaCoachProvider ollama, RuleBasedCoachProvider ruleBased, InteractionService interaction)
+    public CoachService(TennisDbContext db, OllamaCoachProvider ollama, RuleBasedCoachProvider ruleBased, InteractionService interaction, ILogger<CoachService> logger)
     {
         _db = db;
         _ollama = ollama;
         _ruleBased = ruleBased;
         _interaction = interaction;
+        _logger = logger;
     }
 
     public string ActiveProviderName
@@ -33,27 +35,34 @@ public class CoachService
 
     public async Task<string> AskCoachAsync(string userMessage, List<ChatMessage> conversationHistory, CancellationToken ct = default)
     {
-        var context = await BuildContextAsync();
+        var context = await BuildContextAsync(ct);
         ICoachProvider provider = _ollama.IsAvailable ? _ollama : _ruleBased;
 
         try
         {
             return await provider.GetCoachingAsync(userMessage, context, conversationHistory, ct);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            _logger.LogWarning(ex, "Primary coach provider {Provider} failed, falling back to rule-based", provider.ProviderName);
             return await _ruleBased.GetCoachingAsync(userMessage, context, conversationHistory, ct);
         }
     }
 
-    private async Task<SessionContext> BuildContextAsync()
+    private async Task<SessionContext> BuildContextAsync(CancellationToken ct = default)
     {
-        var sessions = _db.Sessions
+        // Limit to last 100 sessions for aggregates to avoid unbounded memory growth
+        var sessions = await _db.Sessions
             .OrderByDescending(s => s.Date)
-            .ToList();
+            .Take(100)
+            .ToListAsync(ct);
 
         if (sessions.Count == 0)
-            return new SessionContext();
+        {
+            var wearableOnlyContext = new SessionContext();
+            await EnrichWithWearableDataAsync(wearableOnlyContext, ct);
+            return wearableOnlyContext;
+        }
 
         var ctx = new SessionContext
         {
@@ -138,9 +147,9 @@ public class CoachService
         {
             ctx.Usage = await _interaction.GetUsageSummaryAsync();
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Don't let interaction tracking failures break coaching
+            _logger.LogWarning(ex, "Failed to load interaction usage data for coaching context");
         }
 
         // Enrich with goal data (v2)
@@ -148,7 +157,7 @@ public class CoachService
         {
             var goals = await _db.DevelopmentGoals
                 .Include(g => g.CheckIns)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             ctx.ActiveGoals = goals
                 .Where(g => g.Status == GoalStatuses.Active)
@@ -161,12 +170,73 @@ public class CoachService
                 .Select(ToGoalSummary)
                 .ToList();
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Don't let goal loading failures break coaching
+            _logger.LogWarning(ex, "Failed to load goal data for coaching context");
         }
 
+        await EnrichWithWearableDataAsync(ctx, ct);
         return ctx;
+    }
+
+    private async Task EnrichWithWearableDataAsync(SessionContext context, CancellationToken ct)
+    {
+        try
+        {
+            context.RecentWearableDays = await _db.ExternalDailySummaries
+                .AsNoTracking()
+                .OrderByDescending(summary => summary.SummaryDate)
+                .Take(14)
+                .Select(summary => new WearableDaySummary
+                {
+                    Date = summary.SummaryDate,
+                    Steps = summary.Steps,
+                    ActiveCaloriesKcal = summary.ActiveCaloriesKcal,
+                    RestingHeartRateBpm = summary.RestingHeartRateBpm,
+                    HeartRateVariabilityRmssdMs = summary.HeartRateVariabilityRmssdMs,
+                    OxygenSaturationPercent = summary.OxygenSaturationPercent,
+                    Vo2MaxMlPerKgPerMin = summary.Vo2MaxMlPerKgPerMin,
+                    SleepDurationMinutes = summary.SleepDurationMinutes,
+                    DeepSleepMinutes = summary.DeepSleepMinutes,
+                    RemSleepMinutes = summary.RemSleepMinutes
+                })
+                .ToListAsync(ct);
+
+            context.RecentWearableWorkouts = await _db.ExternalWorkouts
+                .AsNoTracking()
+                .OrderByDescending(workout => workout.StartedAt)
+                .Take(10)
+                .Select(workout => new WearableWorkoutSummary
+                {
+                    StartedAt = workout.StartedAt,
+                    DurationMinutes = (int)(workout.EndedAt - workout.StartedAt).TotalMinutes,
+                    CaloriesKcal = workout.CaloriesKcal,
+                    AverageHeartRateBpm = workout.AverageHeartRateBpm,
+                    MaxHeartRateBpm = workout.MaxHeartRateBpm,
+                    HeartRateSampleCount = workout.HeartRateSampleCount
+                })
+                .ToListAsync(ct);
+
+            var latestWeight = await _db.ExternalBodyMeasurements
+                .AsNoTracking()
+                .Where(measurement => measurement.WeightKg.HasValue)
+                .OrderByDescending(measurement => measurement.MeasuredAt)
+                .Select(measurement => measurement.WeightKg)
+                .FirstOrDefaultAsync(ct);
+            var latestBodyFat = await _db.ExternalBodyMeasurements
+                .AsNoTracking()
+                .Where(measurement => measurement.BodyFatPercent.HasValue)
+                .OrderByDescending(measurement => measurement.MeasuredAt)
+                .Select(measurement => measurement.BodyFatPercent)
+                .FirstOrDefaultAsync(ct);
+
+            context.LatestWeightKg = latestWeight;
+            context.LatestBodyFatPercent = latestBodyFat;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to load wearable data for coaching context");
+        }
     }
 
     private static GoalSummary ToGoalSummary(DevelopmentGoal g)

@@ -8,7 +8,7 @@ using TennisIntelligence.Services;
 namespace TennisIntelligence.Pages;
 
 #pragma warning disable CS8618 // initialized in constructor
-public class LogSessionModel : PageModel
+public sealed class LogSessionModel : PageModel
 {
     private readonly TennisDbContext _db;
     private readonly CoachService _coach;
@@ -22,7 +22,7 @@ public class LogSessionModel : PageModel
     }
 
     [BindProperty]
-    public Session Session { get; set; } = new() { Date = DateTime.Today, EnergyLevel = 5 };
+    public Session Session { get; set; } = new() { Date = DateTime.UtcNow.Date, EnergyLevel = 5 };
 
     [BindProperty]
     public List<string> SelectedBreakdownAreas { get; set; } = [];
@@ -63,19 +63,17 @@ public class LogSessionModel : PageModel
         {
             GoalId = g.Id,
             GoalName = g.Name,
-            WorkedOnIt = false,
-            HowItFelt = string.Empty,
-            Note = string.Empty
+            WorkedOnIt = false
         }).ToList();
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
         // Reload active goals for display if validation fails
         ActiveGoals = await _db.DevelopmentGoals
             .Where(g => g.Status == GoalStatuses.Active)
             .OrderBy(g => g.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         if (!ModelState.IsValid)
             return Page();
@@ -89,7 +87,13 @@ public class LogSessionModel : PageModel
         Session.CreatedAt = DateTime.UtcNow;
 
         _db.Sessions.Add(Session);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
+
+        // Prefetch active goal IDs once to avoid N+1 queries
+        var activeGoalIds = await _db.DevelopmentGoals
+            .Where(g => g.Status == GoalStatuses.Active)
+            .Select(g => g.Id)
+            .ToHashSetAsync(ct);
 
         // Save goal check-ins (only for goals that were worked on)
         var checkInCount = 0;
@@ -98,12 +102,10 @@ public class LogSessionModel : PageModel
             if (!input.WorkedOnIt)
                 continue;
 
-            // Verify the goal exists and is active
-            var goalExists = await _db.DevelopmentGoals.AnyAsync(g => g.Id == input.GoalId && g.Status == GoalStatuses.Active);
-            if (!goalExists)
+            if (!activeGoalIds.Contains(input.GoalId))
                 continue;
 
-            var feeling = GoalFeelings.All.Contains(input.HowItFelt) ? input.HowItFelt : GoalFeelings.Okay;
+            var feeling = input.HowItFelt != null && GoalFeelings.All.Contains(input.HowItFelt) ? input.HowItFelt : GoalFeelings.Okay;
 
             _db.GoalCheckIns.Add(new GoalCheckIn
             {
@@ -116,7 +118,7 @@ public class LogSessionModel : PageModel
         }
 
         if (checkInCount > 0)
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
 
         await _interaction.LogAsync(PageNames.LogSession, InteractionActions.SessionLogged,
             checkInCount > 0 ? $"goals:{checkInCount}" : null);
@@ -144,18 +146,18 @@ public class LogSessionModel : PageModel
                 HttpContext.RequestAborted);
             return new JsonResult(new { tip });
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new JsonResult(new { tip = "Great job logging your session! Keep tracking to unlock personalized insights. 🎾" });
         }
     }
 }
 
-public class GoalCheckInInput
+public sealed class GoalCheckInInput
 {
     public int GoalId { get; set; }
-    public string GoalName { get; set; } = string.Empty;
+    public string? GoalName { get; set; }
     public bool WorkedOnIt { get; set; }
-    public string HowItFelt { get; set; } = string.Empty;
-    public string Note { get; set; } = string.Empty;
+    public string? HowItFelt { get; set; }
+    public string? Note { get; set; }
 }

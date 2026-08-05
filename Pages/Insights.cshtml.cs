@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using TennisIntelligence.Data;
 using TennisIntelligence.Models;
 
 namespace TennisIntelligence.Pages;
 
-public class InsightsModel : PageModel
+public sealed class InsightsModel : PageModel
 {
     private readonly TennisDbContext _db;
 
@@ -29,9 +30,9 @@ public class InsightsModel : PageModel
     public int CurrentStreak { get; set; }
     public int LongestStreak { get; set; }
 
-    public void OnGet()
+    public async Task OnGetAsync()
     {
-        var sessions = _db.Sessions.ToList();
+        var sessions = await _db.Sessions.ToListAsync();
         TotalSessions = sessions.Count;
 
         if (TotalSessions == 0) return;
@@ -64,7 +65,7 @@ public class InsightsModel : PageModel
             .ToDictionary(g => g.Key, g => g.Count());
 
         // Weekly summaries (last 4 weeks)
-        var fourWeeksAgo = DateTime.SpecifyKind(DateTime.Today.AddDays(-28), DateTimeKind.Utc);
+        var fourWeeksAgo = DateTime.UtcNow.Date.AddDays(-28);
         WeeklySummaries = sessions
             .Where(s => s.Date >= fourWeeksAgo)
             .GroupBy(s => StartOfWeek(s.Date))
@@ -92,7 +93,8 @@ public class InsightsModel : PageModel
 
         // Streak calculations
         var sortedDates = sessions.Select(s => s.Date.Date).Distinct().OrderBy(d => d).ToList();
-        CurrentStreak = CalculateCurrentStreak(sortedDates);
+        var utcToday = DateTime.UtcNow.Date;
+        CurrentStreak = CalculateCurrentStreak(sortedDates, utcToday);
         LongestStreak = CalculateLongestStreak(sortedDates);
     }
 
@@ -118,12 +120,12 @@ public class InsightsModel : PageModel
     }
 
     /// <summary>Consecutive play days from today, allowing a 1-day gap.</summary>
-    private static int CalculateCurrentStreak(List<DateTime> sortedDates)
+    private static int CalculateCurrentStreak(List<DateTime> sortedDates, DateTime today)
     {
         if (sortedDates.Count == 0) return 0;
 
         int streak = 1;
-        var cursor = DateTime.Today;
+        var cursor = today;
 
         // Find the most recent session date on or before today
         var lastIdx = sortedDates.FindLastIndex(d => d <= cursor);
@@ -169,7 +171,7 @@ public class InsightsModel : PageModel
     }
 }
 
-public class WeeklySummary
+public sealed class WeeklySummary
 {
     public DateTime WeekStart { get; set; }
     public int Count { get; set; }

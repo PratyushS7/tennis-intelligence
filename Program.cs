@@ -68,6 +68,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddScoped<InteractionService>();
 builder.Services.AddScoped<InteractionLoggingFilter>();
+builder.Services.AddHostedService<KeepAliveService>();
 
 var app = builder.Build();
 

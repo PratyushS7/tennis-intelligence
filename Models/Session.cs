@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TennisIntelligence.Models;
 
-public class Session
+public sealed class Session
 {
     public int Id { get; set; }
 
@@ -12,7 +12,7 @@ public class Session
     [Range(1, 600)]
     public int DurationMinutes { get; set; }
 
-    [Range(1, 10)]
+    [Range(0, 10)]
     public int EnergyLevel { get; set; } = 5;
 
     // Before/After energy: Fresh, Normal, Tired / Still had gas, Just right, Completely gassed

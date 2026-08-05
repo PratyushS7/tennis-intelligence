@@ -4,7 +4,7 @@ using TennisIntelligence.Models;
 
 namespace TennisIntelligence.Services;
 
-public class OllamaCoachProvider : ICoachProvider
+public sealed class OllamaCoachProvider : ICoachProvider
 {
     private readonly HttpClient _http;
     private readonly string _model;
@@ -230,6 +230,52 @@ public class OllamaCoachProvider : ICoachProvider
             sb.AppendLine("## Recently Completed Goals (last 30 days)");
             foreach (var g in ctx.RecentlyCompleted)
                 sb.AppendLine($"- **{g.Name}** ({g.Category}) — completed after {g.DaysActive} days, {g.TotalCheckIns} check-ins");
+        }
+
+        if (ctx.RecentWearableDays.Count > 0 || ctx.RecentWearableWorkouts.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Wearable Recovery and Training Load");
+            sb.AppendLine("Use these signals as context, not as medical diagnosis. Look for trends across multiple days.");
+
+            foreach (var day in ctx.RecentWearableDays.Take(7))
+            {
+                var values = new List<string>();
+                if (day.SleepDurationMinutes.HasValue)
+                    values.Add($"sleep {day.SleepDurationMinutes.Value / 60}h {day.SleepDurationMinutes.Value % 60}m");
+                if (day.DeepSleepMinutes.HasValue)
+                    values.Add($"deep {day.DeepSleepMinutes}m");
+                if (day.RemSleepMinutes.HasValue)
+                    values.Add($"REM {day.RemSleepMinutes}m");
+                if (day.RestingHeartRateBpm.HasValue)
+                    values.Add($"RHR {day.RestingHeartRateBpm} bpm");
+                if (day.HeartRateVariabilityRmssdMs.HasValue)
+                    values.Add($"HRV {day.HeartRateVariabilityRmssdMs:F1} ms");
+                if (day.OxygenSaturationPercent.HasValue)
+                    values.Add($"SpO₂ {day.OxygenSaturationPercent:F1}%");
+                if (day.Vo2MaxMlPerKgPerMin.HasValue)
+                    values.Add($"VO₂ max {day.Vo2MaxMlPerKgPerMin:F1} ml/kg/min");
+                if (day.Steps.HasValue)
+                    values.Add($"{day.Steps:N0} steps");
+
+                if (values.Count > 0)
+                    sb.AppendLine($"- {day.Date:MMM dd}: {string.Join(", ", values)}");
+            }
+
+            foreach (var workout in ctx.RecentWearableWorkouts.Take(5))
+            {
+                sb.AppendLine(
+                    $"- Tennis {workout.StartedAt:MMM dd}: {workout.DurationMinutes} min, " +
+                    $"avg HR {workout.AverageHeartRateBpm?.ToString() ?? "n/a"}, " +
+                    $"max HR {workout.MaxHeartRateBpm?.ToString() ?? "n/a"}, " +
+                    $"{workout.CaloriesKcal?.ToString("0") ?? "n/a"} kcal, " +
+                    $"{workout.HeartRateSampleCount} HR samples");
+            }
+
+            if (ctx.LatestWeightKg.HasValue)
+                sb.AppendLine($"- Latest weight: {ctx.LatestWeightKg:F1} kg");
+            if (ctx.LatestBodyFatPercent.HasValue)
+                sb.AppendLine($"- Latest body fat: {ctx.LatestBodyFatPercent:F1}%");
         }
 
         // App usage context for feedback loop

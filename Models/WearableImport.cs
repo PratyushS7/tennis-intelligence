@@ -78,6 +78,7 @@ public sealed class ExternalDailySummary
     public int? RestingHeartRateBpm { get; set; }
     public decimal? HeartRateVariabilityRmssdMs { get; set; }
     public decimal? OxygenSaturationPercent { get; set; }
+    public decimal? Vo2MaxMlPerKgPerMin { get; set; }
     public int? SleepDurationMinutes { get; set; }
     public int? AwakeMinutes { get; set; }
     public int? LightSleepMinutes { get; set; }

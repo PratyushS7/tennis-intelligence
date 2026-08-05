@@ -402,6 +402,8 @@ public sealed class WearableImportService
             return $"{id}: HeartRateVariabilityRmssdMs must be between 0 and 1,000.";
         if (summary.OxygenSaturationPercent is < 0 or > 100)
             return $"{id}: OxygenSaturationPercent must be between 0 and 100.";
+        if (summary.Vo2MaxMlPerKgPerMin is < 0 or > 100)
+            return $"{id}: Vo2MaxMlPerKgPerMin must be between 0 and 100.";
         if (new[]
             {
                 summary.SleepDurationMinutes,
@@ -484,6 +486,7 @@ public sealed class WearableImportService
         && existing.RestingHeartRateBpm == incoming.RestingHeartRateBpm
         && existing.HeartRateVariabilityRmssdMs == incoming.HeartRateVariabilityRmssdMs
         && existing.OxygenSaturationPercent == incoming.OxygenSaturationPercent
+        && existing.Vo2MaxMlPerKgPerMin == incoming.Vo2MaxMlPerKgPerMin
         && existing.SleepDurationMinutes == incoming.SleepDurationMinutes
         && existing.AwakeMinutes == incoming.AwakeMinutes
         && existing.LightSleepMinutes == incoming.LightSleepMinutes
@@ -566,6 +569,7 @@ public sealed class WearableImportService
         entity.RestingHeartRateBpm = summary.RestingHeartRateBpm;
         entity.HeartRateVariabilityRmssdMs = summary.HeartRateVariabilityRmssdMs;
         entity.OxygenSaturationPercent = summary.OxygenSaturationPercent;
+        entity.Vo2MaxMlPerKgPerMin = summary.Vo2MaxMlPerKgPerMin;
         entity.SleepDurationMinutes = summary.SleepDurationMinutes;
         entity.AwakeMinutes = summary.AwakeMinutes;
         entity.LightSleepMinutes = summary.LightSleepMinutes;
@@ -639,6 +643,7 @@ public sealed class WearableDailySummaryRecord
     public int? RestingHeartRateBpm { get; set; }
     public decimal? HeartRateVariabilityRmssdMs { get; set; }
     public decimal? OxygenSaturationPercent { get; set; }
+    public decimal? Vo2MaxMlPerKgPerMin { get; set; }
     public int? SleepDurationMinutes { get; set; }
     public int? AwakeMinutes { get; set; }
     public int? LightSleepMinutes { get; set; }

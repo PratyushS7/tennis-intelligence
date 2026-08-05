@@ -7,7 +7,7 @@ using TennisIntelligence.Services;
 
 namespace TennisIntelligence.Pages;
 
-public class GoalDetailModel : PageModel
+public sealed class GoalDetailModel : PageModel
 {
     private readonly TennisDbContext _db;
     private readonly InteractionService _interaction;
@@ -24,12 +24,12 @@ public class GoalDetailModel : PageModel
     public int OkayCount { get; set; }
     public int ClickedCount { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(int id)
+    public async Task<IActionResult> OnGetAsync(int id, CancellationToken ct)
     {
         var goal = await _db.DevelopmentGoals
             .Include(g => g.CheckIns)
                 .ThenInclude(c => c.Session)
-            .FirstOrDefaultAsync(g => g.Id == id);
+            .FirstOrDefaultAsync(g => g.Id == id, ct);
 
         if (goal == null)
             return RedirectToPage("/Goals");
@@ -56,7 +56,7 @@ public class GoalDetailModel : PageModel
     }
 }
 
-public class CheckInRow
+public sealed class CheckInRow
 {
     public DateTime Date { get; set; }
     public int? SessionRating { get; set; }

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace TennisIntelligence.Services;
 
-public class RuleBasedCoachProvider : ICoachProvider
+public sealed class RuleBasedCoachProvider : ICoachProvider
 {
     public string ProviderName => "Rule-Based Coach";
     public bool IsAvailable => true;
@@ -13,6 +13,9 @@ public class RuleBasedCoachProvider : ICoachProvider
     public Task<string> GetCoachingAsync(string userMessage, SessionContext context, List<ChatMessage> conversationHistory, CancellationToken ct = default)
     {
         var sb = new StringBuilder();
+        if (string.IsNullOrWhiteSpace(userMessage))
+            return Task.FromResult("Please ask me a question about your tennis game!");
+
         var msg = userMessage.ToLowerInvariant();
 
         if (context.TotalSessions == 0)
@@ -170,6 +173,17 @@ public class RuleBasedCoachProvider : ICoachProvider
             sb.AppendLine("💡 Your energy levels are on the lower side. Consider adjusting session timing or improving sleep/nutrition.");
         else
             sb.AppendLine("⚡ Energy levels look healthy!");
+
+        var latestWearableDay = ctx.RecentWearableDays.FirstOrDefault();
+        if (latestWearableDay?.SleepDurationMinutes is int sleepMinutes)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Latest wearable sleep: **{sleepMinutes / 60}h {sleepMinutes % 60}m**.");
+            if (sleepMinutes < 420)
+                sb.AppendLine("💤 Recovery may be limited; keep the next high-intensity session shorter or lower-volume.");
+        }
+        if (latestWearableDay?.HeartRateVariabilityRmssdMs is decimal hrv)
+            sb.AppendLine($"Latest HRV: **{hrv:F1} ms** — compare this with your own multi-day baseline rather than a population target.");
     }
 
     private static void BuildMentalAnalysis(StringBuilder sb, SessionContext ctx)

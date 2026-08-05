@@ -26,6 +26,36 @@ public class SessionContext
     // Development goals context (v2)
     public List<GoalSummary> ActiveGoals { get; set; } = [];
     public List<GoalSummary> RecentlyCompleted { get; set; } = [];
+
+    // Wearable recovery and training-load context
+    public List<WearableDaySummary> RecentWearableDays { get; set; } = [];
+    public List<WearableWorkoutSummary> RecentWearableWorkouts { get; set; } = [];
+    public decimal? LatestWeightKg { get; set; }
+    public decimal? LatestBodyFatPercent { get; set; }
+}
+
+public sealed class WearableDaySummary
+{
+    public DateOnly Date { get; set; }
+    public long? Steps { get; set; }
+    public decimal? ActiveCaloriesKcal { get; set; }
+    public int? RestingHeartRateBpm { get; set; }
+    public decimal? HeartRateVariabilityRmssdMs { get; set; }
+    public decimal? OxygenSaturationPercent { get; set; }
+    public decimal? Vo2MaxMlPerKgPerMin { get; set; }
+    public int? SleepDurationMinutes { get; set; }
+    public int? DeepSleepMinutes { get; set; }
+    public int? RemSleepMinutes { get; set; }
+}
+
+public sealed class WearableWorkoutSummary
+{
+    public DateTimeOffset StartedAt { get; set; }
+    public int DurationMinutes { get; set; }
+    public decimal? CaloriesKcal { get; set; }
+    public int? AverageHeartRateBpm { get; set; }
+    public int? MaxHeartRateBpm { get; set; }
+    public int HeartRateSampleCount { get; set; }
 }
 
 public class GoalSummary

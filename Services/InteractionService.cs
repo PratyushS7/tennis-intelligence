@@ -89,26 +89,23 @@ public sealed class InteractionService
             summary.SessionLoggingFrequencyDays = totalSpan / (sessionDates.Count - 1);
         }
 
-        // Field completion rates (from Sessions table)
-        var sessions = await _db.Sessions.ToListAsync();
-        if (sessions.Count > 0)
+        // Field completion rates — use projections instead of loading full entities
+        var totalSessionCount = await _db.Sessions.CountAsync();
+        if (totalSessionCount > 0)
         {
             summary.FieldCompletionRates = new Dictionary<string, double>
             {
-                ["FocusArea"] = Pct(sessions, s => !string.IsNullOrWhiteSpace(s.FocusArea)),
-                ["Notes"] = Pct(sessions, s => !string.IsNullOrWhiteSpace(s.Notes)),
-                ["SessionRating"] = Pct(sessions, s => s.SessionRating.HasValue),
-                ["OpponentLevel"] = Pct(sessions, s => !string.IsNullOrWhiteSpace(s.OpponentLevel)),
-                ["MentalState"] = Pct(sessions, s => !string.IsNullOrWhiteSpace(s.MentalState)),
-                ["MatchResult"] = Pct(sessions, s => !string.IsNullOrWhiteSpace(s.MatchResult) && s.MatchResult != "N/A"),
+                ["FocusArea"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.FocusArea != null && s.FocusArea != "") / totalSessionCount, 1),
+                ["Notes"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.Notes != null && s.Notes != "") / totalSessionCount, 1),
+                ["SessionRating"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.SessionRating != null) / totalSessionCount, 1),
+                ["OpponentLevel"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.OpponentLevel != null && s.OpponentLevel != "") / totalSessionCount, 1),
+                ["MentalState"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.MentalState != null && s.MentalState != "") / totalSessionCount, 1),
+                ["MatchResult"] = Math.Round(100.0 * await _db.Sessions.CountAsync(s => s.MatchResult != null && s.MatchResult != "" && s.MatchResult != "N/A") / totalSessionCount, 1),
             };
         }
 
         return summary;
     }
-
-    private static double Pct(List<Session> sessions, Func<Session, bool> predicate)
-        => Math.Round(100.0 * sessions.Count(predicate) / sessions.Count, 1);
 }
 
 public sealed class UsageSummary

@@ -89,6 +89,7 @@ public sealed class TennisDbContext : DbContext
             entity.Property(e => e.DistanceMeters).HasPrecision(12, 2);
             entity.Property(e => e.HeartRateVariabilityRmssdMs).HasPrecision(8, 2);
             entity.Property(e => e.OxygenSaturationPercent).HasPrecision(5, 2);
+            entity.Property(e => e.Vo2MaxMlPerKgPerMin).HasPrecision(5, 2);
             entity.Property(e => e.RawPayload).HasColumnType("jsonb");
             entity.HasOne(e => e.LastImportBatch)
                   .WithMany()

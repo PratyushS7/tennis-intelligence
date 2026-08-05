@@ -7,7 +7,7 @@ using TennisIntelligence.Services;
 
 namespace TennisIntelligence.Pages;
 
-public class GoalsModel : PageModel
+public sealed class GoalsModel : PageModel
 {
     private readonly TennisDbContext _db;
     private readonly InteractionService _interaction;
@@ -37,7 +37,7 @@ public class GoalsModel : PageModel
         await LoadGoalsAsync();
     }
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    public async Task<IActionResult> OnPostCreateAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(NewGoalName))
         {
@@ -47,7 +47,7 @@ public class GoalsModel : PageModel
         }
 
         // Soft cap: max 5 active goals
-        var activeCount = await _db.DevelopmentGoals.CountAsync(g => g.Status == GoalStatuses.Active);
+        var activeCount = await _db.DevelopmentGoals.CountAsync(g => g.Status == GoalStatuses.Active, ct);
         if (activeCount >= 5)
         {
             TempData["Error"] = "You can have at most 5 active goals. Complete or archive one first.";
@@ -65,48 +65,48 @@ public class GoalsModel : PageModel
         };
 
         _db.DevelopmentGoals.Add(goal);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         await _interaction.LogAsync(PageNames.Goals, InteractionActions.GoalCreated, goal.Name);
 
         TempData["Success"] = $"Goal \"{goal.Name}\" created! 🎯";
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostCompleteAsync(int id)
+    public async Task<IActionResult> OnPostCompleteAsync(int id, CancellationToken ct)
     {
-        var goal = await _db.DevelopmentGoals.FindAsync(id);
+        var goal = await _db.DevelopmentGoals.FindAsync([id], ct);
         if (goal != null && goal.Status == GoalStatuses.Active)
         {
             goal.Status = GoalStatuses.Completed;
             goal.CompletedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
             await _interaction.LogAsync(PageNames.Goals, InteractionActions.GoalCompleted, goal.Name);
             TempData["Success"] = $"🎉 \"{goal.Name}\" marked as completed! Great progress!";
         }
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostArchiveAsync(int id)
+    public async Task<IActionResult> OnPostArchiveAsync(int id, CancellationToken ct)
     {
-        var goal = await _db.DevelopmentGoals.FindAsync(id);
+        var goal = await _db.DevelopmentGoals.FindAsync([id], ct);
         if (goal != null)
         {
             goal.Status = GoalStatuses.Archived;
             goal.CompletedAt ??= DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
             await _interaction.LogAsync(PageNames.Goals, InteractionActions.GoalArchived, goal.Name);
             TempData["Success"] = $"\"{goal.Name}\" archived.";
         }
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnGetSuggestAsync()
+    public async Task<IActionResult> OnGetSuggestAsync(CancellationToken ct)
     {
-        var sessionCount = await _db.Sessions.CountAsync();
+        var sessionCount = await _db.Sessions.CountAsync(ct);
         var activeGoals = await _db.DevelopmentGoals
             .Where(g => g.Status == GoalStatuses.Active)
             .Select(g => g.Name)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var prompt = "Based on my session history, suggest 2-3 new development goals I should work on. " +
             "For each suggestion, give: the goal name, the category (Technique/Tactical/Mental/Fitness/Fundamentals), " +
@@ -121,10 +121,10 @@ public class GoalsModel : PageModel
 
         try
         {
-            var response = await _coach.AskCoachAsync(prompt);
+            var response = await _coach.AskCoachAsync(prompt, ct);
             return new JsonResult(new { suggestions = response });
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new JsonResult(new { suggestions = "Couldn't generate suggestions right now. Try again later or check if Ollama is running." });
         }
@@ -173,7 +173,7 @@ public class GoalsModel : PageModel
     }
 }
 
-public class GoalViewModel
+public sealed class GoalViewModel
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

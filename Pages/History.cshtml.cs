@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using TennisIntelligence.Data;
 using TennisIntelligence.Models;
 using TennisIntelligence.Services;
 
 namespace TennisIntelligence.Pages;
 
-public class HistoryModel : PageModel
+public sealed class HistoryModel : PageModel
 {
     private readonly TennisDbContext _db;
     private readonly InteractionService _interaction;
@@ -19,20 +20,20 @@ public class HistoryModel : PageModel
 
     public List<Session> Sessions { get; set; } = [];
 
-    public void OnGet()
+    public async Task OnGetAsync()
     {
-        Sessions = _db.Sessions
+        Sessions = await _db.Sessions
             .OrderByDescending(s => s.Date)
-            .ToList();
+            .ToListAsync();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
-        var session = _db.Sessions.Find(id);
+        var session = await _db.Sessions.FindAsync(id);
         if (session != null)
         {
             _db.Sessions.Remove(session);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
             await _interaction.LogAsync(PageNames.History, InteractionActions.SessionDeleted);
             TempData["Success"] = "Session deleted.";
         }

@@ -27,16 +27,23 @@
                 <div class="navbar-collapse collapse d-md-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-white" asp-page="/LogSession">📝 Log Session</a>
+                            <a class="nav-link text-white" asp-page="/LogSession">📝 Log</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white" asp-page="/Goals">🎯 Goals</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white" asp-page="/History">📋 History</a>
+                            <a class="nav-link text-white" asp-page="/Coach">🤖 Coach</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-page="/Coach">🤖 AI Coach</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                                📊 More
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" asp-page="/History">📋 History</a></li>
+                                <li><a class="dropdown-item" asp-page="/Insights">📈 Insights</a></li>
+                                <li><a class="dropdown-item" asp-page="/Imports">⌚ Imports</a></li>
+                            </ul>
                         </li>
                     </ul>
                 </div>
@@ -78,15 +85,35 @@
             <span class="bottom-nav-icon">🎯</span>
             <span class="bottom-nav-label">Goals</span>
         </a>
-        <a asp-page="/History" class="bottom-nav-item @(currentPage == "/History" ? "active" : "")">
-            <span class="bottom-nav-icon">📋</span>
-            <span class="bottom-nav-label">History</span>
-        </a>
         <a asp-page="/Coach" class="bottom-nav-item @(currentPage == "/Coach" ? "active" : "")">
             <span class="bottom-nav-icon">🤖</span>
             <span class="bottom-nav-label">Coach</span>
         </a>
+        <a href="#" class="bottom-nav-item @(currentPage == "/History" || currentPage == "/Insights" || currentPage == "/Imports" ? "active" : "")" data-bs-toggle="offcanvas" data-bs-target="#moreMenu">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label">More</span>
+        </a>
     </nav>
+
+    <!-- Mobile "More" offcanvas menu -->
+    <div class="offcanvas offcanvas-bottom d-md-none" tabindex="-1" id="moreMenu" style="height: auto;">
+        <div class="offcanvas-body py-3">
+            <div class="d-flex justify-content-around text-center">
+                <a asp-page="/History" class="text-decoration-none text-dark">
+                    <div style="font-size: 1.5rem;">📋</div>
+                    <div class="small">History</div>
+                </a>
+                <a asp-page="/Insights" class="text-decoration-none text-dark">
+                    <div style="font-size: 1.5rem;">📈</div>
+                    <div class="small">Insights</div>
+                </a>
+                <a asp-page="/Imports" class="text-decoration-none text-dark">
+                    <div style="font-size: 1.5rem;">⌚</div>
+                    <div class="small">Imports</div>
+                </a>
+            </div>
+        </div>
+    </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

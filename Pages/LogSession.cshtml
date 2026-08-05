@@ -128,10 +128,12 @@
                 @foreach (var e in new[] { ("🔋 Fresh", "Fresh"), ("😐 Normal", "Normal"), ("🪫 Tired", "Tired") })
                 {
                     var eid = "eb_" + e.Item2;
-                    <input class="btn-check" type="radio" name="Session.EnergyBefore" value="@e.Item2" id="@eid" autocomplete="off" />
+                    <input class="btn-check" type="radio" name="Session.EnergyBefore" value="@e.Item2" id="@eid" autocomplete="off"
+                           onchange="document.getElementById('energyLevelInput').value={'Fresh':'8','Normal':'5','Tired':'3'}[this.value]||'5'" />
                     <label class="btn btn-outline-success btn-sm rounded-pill" for="@eid">@e.Item1</label>
                 }
             </div>
+            <input type="hidden" name="Session.EnergyLevel" id="energyLevelInput" value="5" />
         </div>
 
         <div class="col-6">

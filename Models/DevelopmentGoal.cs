@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TennisIntelligence.Models;
 
-public class DevelopmentGoal
+public sealed class DevelopmentGoal
 {
     public int Id { get; set; }
 
@@ -27,7 +27,7 @@ public class DevelopmentGoal
     public List<GoalCheckIn> CheckIns { get; set; } = [];
 }
 
-public class GoalCheckIn
+public sealed class GoalCheckIn
 {
     public int Id { get; set; }
 
