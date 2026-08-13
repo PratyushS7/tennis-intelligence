@@ -81,7 +81,7 @@ Tennis Intelligence follows a **goal-centric development loop**:
 ### ⌚ Wearable Imports
 - Imports versioned JSON packages produced by phone and file connectors
 - Preserves source identity and raw payloads
-- Safely handles repeated imports through source-record upserts
+- Safely handles repeated imports and Health Connect/Samsung identity changes without duplicates
 - Reports inserted, updated, unchanged, and rejected records
 - Supports workout heart-rate timelines, daily activity/recovery/sleep summaries, and body measurements
 - Test packages are available at `samples/wearable-import-v1.json` and `samples/wearable-import-v2.json`

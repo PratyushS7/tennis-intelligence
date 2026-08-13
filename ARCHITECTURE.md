@@ -45,6 +45,7 @@ ImportBatch
 
 ExternalWorkout
 ├── Source + SourceRecordId — unique source identity
+├── Overlapping source aliases preserve the first stored identity
 ├── SourceApplication, ActivityType
 ├── StartedAt, EndedAt, SourceLastModifiedAt
 ├── Distance, calories, min/average/max heart rate
@@ -86,7 +87,7 @@ ExternalBodyMeasurement
 
 **Why retain the raw wearable payload?** Connector mappings will evolve as Samsung, Health Connect, and file formats change. Retaining the versioned source record allows corrected mappings and derived metrics to be rebuilt without re-exporting the original data.
 
-**Why use Health Connect as the primary connector?** It provides one permission and schema layer across Samsung Health and other Android health sources. Schema version 2 preserves source identifiers, stores detailed workout heart-rate samples, and adds daily recovery/activity context. Source-aware upserts prevent repeated exports from duplicating records.
+**Why use Health Connect as the primary connector?** It provides one permission and schema layer across Samsung Health and other Android health sources. Schema version 2 preserves source identifiers, stores detailed workout heart-rate samples, and adds daily recovery/activity context. Source-aware upserts prevent repeated exports from duplicating records, while overlapping sessions from Samsung retain the existing stored identity.
 
 **Why is Samsung Health Data SDK optional?** Samsung-only values such as Energy Score and sleep score require Samsung's authenticated SDK download and developer mode for a personal debug build. The AAR is not stored in this repository; it must be downloaded under the user's Samsung Developer account and its SDK terms.
 
