@@ -13,6 +13,7 @@ public sealed class WearableImportService
     public const long MaximumFileSizeBytes = 10 * 1024 * 1024;
     public const int MaximumRecordsPerImport = 5_000;
     private const int MaximumConcurrencyAttempts = 3;
+    private static readonly TimeSpan WorkoutStartTolerance = TimeSpan.FromMinutes(5);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -110,6 +111,27 @@ public sealed class WearableImportService
         var existingWorkouts = await _db.ExternalWorkouts
             .Where(w => w.Source == batch.Source && sourceRecordIds.Contains(w.SourceRecordId))
             .ToDictionaryAsync(w => w.SourceRecordId, StringComparer.Ordinal, cancellationToken);
+        var workoutsWithValidTimes = package.Workouts
+            .Where(workout =>
+                workout.StartedAt != default
+                && workout.EndedAt > workout.StartedAt)
+            .ToList();
+        var existingWorkoutsByTime = new List<ExternalWorkout>();
+        if (workoutsWithValidTimes.Count > 0)
+        {
+            var earliestStart = workoutsWithValidTimes
+                .Min(workout => workout.StartedAt.ToUniversalTime())
+                .Subtract(WorkoutStartTolerance);
+            var latestStart = workoutsWithValidTimes
+                .Max(workout => workout.StartedAt.ToUniversalTime())
+                .Add(WorkoutStartTolerance);
+            existingWorkoutsByTime = await _db.ExternalWorkouts
+                .Where(workout =>
+                    workout.Source == batch.Source
+                    && workout.StartedAt >= earliestStart
+                    && workout.StartedAt <= latestStart)
+                .ToListAsync(cancellationToken);
+        }
 
         var seenRecordIds = new HashSet<string>(StringComparer.Ordinal);
         var errors = new List<string>();
@@ -134,16 +156,26 @@ public sealed class WearableImportService
 
             if (!existingWorkouts.TryGetValue(sourceRecordId, out var entity))
             {
-                entity = new ExternalWorkout
+                entity = existingWorkoutsByTime.FirstOrDefault(existing =>
+                    IsSameWorkout(existing, workout));
+                if (entity is not null)
                 {
-                    Source = batch.Source,
-                    SourceRecordId = sourceRecordId
-                };
-                _db.ExternalWorkouts.Add(entity);
-                existingWorkouts.Add(sourceRecordId, entity);
-                MapWorkout(entity, workout, batch.Id);
-                batch.InsertedRecords++;
-                continue;
+                    existingWorkouts.Add(sourceRecordId, entity);
+                }
+                else
+                {
+                    entity = new ExternalWorkout
+                    {
+                        Source = batch.Source,
+                        SourceRecordId = sourceRecordId
+                    };
+                    _db.ExternalWorkouts.Add(entity);
+                    existingWorkouts.Add(sourceRecordId, entity);
+                    existingWorkoutsByTime.Add(entity);
+                    MapWorkout(entity, workout, batch.Id);
+                    batch.InsertedRecords++;
+                    continue;
+                }
             }
 
             if (!ShouldUpdate(entity, workout))
@@ -474,6 +506,17 @@ public sealed class WearableImportService
             || !JsonEquals(
                 existing.HeartRateSamples,
                 SerializeHeartRateSamples(incoming.HeartRateSamples));
+    }
+
+    private static bool IsSameWorkout(
+        ExternalWorkout existing,
+        WearableWorkoutRecord incoming)
+    {
+        var startedAt = incoming.StartedAt.ToUniversalTime();
+        var endedAt = incoming.EndedAt.ToUniversalTime();
+        return (existing.StartedAt - startedAt).Duration() <= WorkoutStartTolerance
+            && existing.StartedAt < endedAt
+            && startedAt < existing.EndedAt;
     }
 
     private static bool DailySummaryMatches(
