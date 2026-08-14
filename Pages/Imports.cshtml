@@ -183,6 +183,13 @@ else
                             ~@batch.UpdatedRecords /
                             =@batch.UnchangedRecords /
                             !@batch.RejectedRecords
+                            @if (!string.IsNullOrWhiteSpace(batch.RejectionReasons))
+                            {
+                                <details class="mt-1">
+                                    <summary class="text-warning small">Why rejected</summary>
+                                    <pre class="small mb-0">@batch.RejectionReasons</pre>
+                                </details>
+                            }
                         </td>
                     </tr>
                 }

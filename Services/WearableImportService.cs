@@ -305,11 +305,26 @@ public sealed class WearableImportService
         batch.Status = batch.RejectedRecords == 0
             ? ImportStatuses.Completed
             : ImportStatuses.Partial;
+        batch.RejectionReasons = BuildRejectionReasons(errors);
 
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return new WearableImportResult(batch, errors);
+    }
+
+    private static string? BuildRejectionReasons(IReadOnlyList<string> errors)
+    {
+        if (errors.Count == 0)
+        {
+            return null;
+        }
+
+        const int maxLength = 4000;
+        var joined = string.Join(Environment.NewLine, errors);
+        return joined.Length <= maxLength
+            ? joined
+            : joined[..(maxLength - 3)] + "...";
     }
 
     private async Task PrepareConcurrencyRetryAsync(

@@ -24,6 +24,13 @@ public sealed class ImportBatch
     public int UpdatedRecords { get; set; }
     public int UnchangedRecords { get; set; }
     public int RejectedRecords { get; set; }
+
+    /// <summary>
+    /// Why records were rejected. A rejection is never retried, so without this the reason is lost
+    /// for background syncs, which report only counts.
+    /// </summary>
+    [MaxLength(4000)]
+    public string? RejectionReasons { get; set; }
 }
 
 public sealed class ExternalWorkout
