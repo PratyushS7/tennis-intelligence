@@ -1,5 +1,6 @@
 @page
 @model TennisIntelligence.Pages.InsightsModel
+@using TennisIntelligence.Services
 @{
     ViewData["Title"] = "Insights";
 
@@ -12,14 +13,191 @@
         5 => "🔥",
         _ => "—"
     };
+
+    (string Css, string Label) CharacterBadge(SessionCharacter character) => character switch
+    {
+        SessionCharacter.Hard => ("bg-danger", "Hard"),
+        SessionCharacter.Moderate => ("bg-warning text-dark", "Moderate"),
+        SessionCharacter.Light => ("bg-info text-dark", "Light"),
+        _ => ("bg-secondary", "—")
+    };
 }
 
 <h2>📊 Insights Dashboard</h2>
 
+@if (Model.TrainingLoad.HasData)
+{
+    var load = Model.TrainingLoad;
+    var tennis = load.TennisWorkouts;
+    var latestRecovery = load.RecoveryTrend.LastOrDefault();
+
+    <h4 class="mt-4">⌚ Training load</h4>
+    <p class="text-muted small mb-3">
+        Measured from your watch's heart-rate series. Zones are a share of your highest recorded
+        heart rate (@load.ObservedMaxHeartRate bpm). Nothing here needs logging by hand.
+    </p>
+
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="text-success">@tennis.Count</h3>
+                    <small class="text-muted">Tennis sessions analysed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="text-danger">@load.TennisZones.HardPct.ToString("F0")%</h3>
+                    <small class="text-muted">Time at threshold or above</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="text-primary">@(latestRecovery?.Analysis.HeartRateRecovery60?.ToString() ?? "—")</h3>
+                    <small class="text-muted">Recovery, last hard session (bpm)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="text-secondary">@load.TennisHardSessions / @load.TennisModerateSessions / @load.TennisLightSessions</h3>
+                    <small class="text-muted">Hard / moderate / light</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (load.TennisZones.HardPct > 0 || load.TennisZones.Zone1Pct > 0)
+    {
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="card-title">Where your tennis time actually goes</h6>
+                <div class="progress" style="height: 26px;" role="img"
+                     aria-label="Heart-rate zone distribution across tennis sessions">
+                    <div class="progress-bar bg-secondary" style="width:@load.TennisZones.Zone1Pct.ToString("F1")%">Z1</div>
+                    <div class="progress-bar bg-info text-dark" style="width:@load.TennisZones.Zone2Pct.ToString("F1")%">Z2</div>
+                    <div class="progress-bar bg-success" style="width:@load.TennisZones.Zone3Pct.ToString("F1")%">Z3</div>
+                    <div class="progress-bar bg-warning text-dark" style="width:@load.TennisZones.Zone4Pct.ToString("F1")%">Z4</div>
+                    <div class="progress-bar bg-danger" style="width:@load.TennisZones.Zone5Pct.ToString("F1")%">Z5</div>
+                </div>
+                <small class="text-muted">
+                    Z1 easy · Z2 aerobic · Z3 tempo · Z4 threshold · Z5 maximal — weighted by session length.
+                </small>
+            </div>
+        </div>
+    }
+
+    @if (load.RecoveryTrend.Count >= 2)
+    {
+        var best = load.RecoveryTrend.Max(w => w.Analysis.HeartRateRecovery60 ?? 0);
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="card-title">Recovery trend</h6>
+                <p class="text-muted small mb-3">
+                    Beats shed in the 60s after a threshold effort, across your harder tennis sessions.
+                    Rising over time means your conditioning is improving. Easy hits are left out because
+                    they never push hard enough to compare.
+                </p>
+                @foreach (var workout in load.RecoveryTrend)
+                {
+                    var recovery = workout.Analysis.HeartRateRecovery60 ?? 0;
+                    var width = best > 0 ? 100.0 * recovery / best : 0;
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="text-muted small" style="width: 92px;">@workout.StartedAt.ToLocalTime().ToString("ddd d MMM")</span>
+                        <div class="progress flex-grow-1" style="height: 14px;">
+                            <div class="progress-bar bg-primary" style="width:@width.ToString("F1")%"></div>
+                        </div>
+                        <span class="small ms-2" style="width: 56px;">@recovery bpm</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <h6 class="card-title">Session by session</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Activity</th>
+                            <th class="text-end">Min</th>
+                            <th>Intensity</th>
+                            <th style="min-width:140px;">Zones</th>
+                            <th class="text-end">Hard</th>
+                            <th class="text-end">Recovery</th>
+                            <th class="text-end">Drift</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var workout in load.Workouts.Where(w => w.Analysis.HasSeries))
+                    {
+                        var badge = CharacterBadge(workout.Analysis.Character);
+                        var zones = workout.Analysis.Zones;
+                        <tr>
+                            <td>@workout.StartedAt.ToLocalTime().ToString("ddd d MMM")</td>
+                            <td>@workout.ActivityType</td>
+                            <td class="text-end">@workout.DurationMinutes</td>
+                            <td><span class="badge @badge.Css">@badge.Label</span></td>
+                            <td>
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-secondary" style="width:@zones.Zone1Pct.ToString("F1")%"></div>
+                                    <div class="progress-bar bg-info" style="width:@zones.Zone2Pct.ToString("F1")%"></div>
+                                    <div class="progress-bar bg-success" style="width:@zones.Zone3Pct.ToString("F1")%"></div>
+                                    <div class="progress-bar bg-warning" style="width:@zones.Zone4Pct.ToString("F1")%"></div>
+                                    <div class="progress-bar bg-danger" style="width:@zones.Zone5Pct.ToString("F1")%"></div>
+                                </div>
+                            </td>
+                            <td class="text-end">@zones.HardPct.ToString("F0")%</td>
+                            <td class="text-end">
+                                @if (workout.Analysis.HeartRateRecovery60 is int recovery)
+                                {
+                                    <span title="@workout.Analysis.RecoveryWindowCount recovery windows">@recovery bpm</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted" title="Never reached threshold, so there was no effort to recover from">—</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (workout.Analysis.DriftBpm is int drift)
+                                {
+                                    <span class="@(drift > 5 ? "text-danger" : drift < -5 ? "text-success" : "text-muted")">
+                                        @(drift > 0 ? "+" : string.Empty)@drift
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted d-block mt-2">
+                <strong>Recovery</strong> is beats shed in the 60s after a threshold effort — higher is fitter.
+                <strong>Drift</strong> compares the final third to the middle third; positive means you faded.
+            </small>
+        </div>
+    </div>
+}
+
+<h4 class="mt-4">📝 Session log</h4>
+
 @if (Model.TotalSessions == 0)
 {
-    <div class="alert alert-info mt-3">
-        No data yet. <a asp-page="/LogSession">Log some sessions</a> to see insights!
+    <div class="alert alert-info">
+        Nothing logged by hand yet. The training load above comes straight from your watch —
+        <a asp-page="/LogSession">log a session</a> to add how it actually felt.
     </div>
 }
 else

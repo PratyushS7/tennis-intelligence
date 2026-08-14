@@ -2,14 +2,23 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using TennisIntelligence.Data;
 using TennisIntelligence.Models;
+using TennisIntelligence.Services;
 
 namespace TennisIntelligence.Pages;
 
 public sealed class InsightsModel : PageModel
 {
     private readonly TennisDbContext _db;
+    private readonly TrainingLoadService _trainingLoad;
 
-    public InsightsModel(TennisDbContext db) => _db = db;
+    public InsightsModel(TennisDbContext db, TrainingLoadService trainingLoad)
+    {
+        _db = db;
+        _trainingLoad = trainingLoad;
+    }
+
+    /// <summary>Wearable-derived picture, which unlike the manual log needs nothing entered by hand.</summary>
+    public TrainingLoadReport TrainingLoad { get; set; } = new();
 
     public int TotalSessions { get; set; }
     public double AverageEnergy { get; set; }
@@ -30,9 +39,11 @@ public sealed class InsightsModel : PageModel
     public int CurrentStreak { get; set; }
     public int LongestStreak { get; set; }
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync(CancellationToken ct)
     {
-        var sessions = await _db.Sessions.ToListAsync();
+        TrainingLoad = await _trainingLoad.GetReportAsync(ct);
+
+        var sessions = await _db.Sessions.ToListAsync(ct);
         TotalSessions = sessions.Count;
 
         if (TotalSessions == 0) return;
