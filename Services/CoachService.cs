@@ -250,6 +250,7 @@ public sealed class CoachService
                 .ToList();
 
             context.TrainingLoad = BuildTrainingLoad(report);
+            context.TrainingLoadLines = TrainingLoadNarrative.Describe(report);
 
             var latestWeight = await _db.ExternalBodyMeasurements
                 .AsNoTracking()
@@ -278,11 +279,6 @@ public sealed class CoachService
         if (!report.HasData) return null;
 
         var tennis = report.TennisWorkouts;
-        var drifts = tennis
-            .Where(w => w.Analysis.DriftBpm.HasValue)
-            .Select(w => w.Analysis.DriftBpm!.Value)
-            .OrderBy(d => d)
-            .ToList();
 
         return new WearableTrainingLoad
         {
@@ -295,7 +291,7 @@ public sealed class CoachService
             RecoveryFirst = report.RecoveryTrend.FirstOrDefault()?.Analysis.HeartRateRecovery60,
             RecoveryLatest = report.RecoveryTrend.LastOrDefault()?.Analysis.HeartRateRecovery60,
             RecoveryPoints = report.RecoveryTrend.Count,
-            MedianTennisDriftBpm = drifts.Count > 0 ? drifts[drifts.Count / 2] : null
+            MedianTennisDriftBpm = TrainingLoadNarrative.MedianDrift(report)
         };
     }
 

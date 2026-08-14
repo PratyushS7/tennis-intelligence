@@ -57,6 +57,37 @@ public static class ConnectorEndpoints
             .WithName("SyncConnectorWorkouts")
             .DisableAntiforgery();
 
+        endpoints.MapGet(
+            "/api/connectors/training-load",
+            async (
+                HttpRequest request,
+                TrainingLoadService trainingLoad,
+                IOptions<ConnectorOptions> connectorOptions,
+                CancellationToken cancellationToken) =>
+            {
+                var expectedKey = connectorOptions.Value.ApiKey;
+                if (string.IsNullOrWhiteSpace(expectedKey))
+                {
+                    return Results.Problem(
+                        title: "Connector synchronization is disabled.",
+                        detail: "Configure Connector:ApiKey before accepting device synchronization.",
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+
+                if (!request.Headers.TryGetValue(ConnectorOptions.ApiKeyHeader, out var suppliedKey)
+                    || !KeysMatch(expectedKey, suppliedKey.ToString()))
+                {
+                    return Results.Unauthorized();
+                }
+
+                var report = await trainingLoad.GetReportAsync(cancellationToken);
+                var lines = TrainingLoadNarrative.Describe(report);
+
+                // The server renders the sentences so the wording can improve without a new APK.
+                return Results.Ok(new ConnectorTrainingLoadResponse(lines.Count > 0, lines));
+            })
+            .WithName("GetConnectorTrainingLoad");
+
         return endpoints;
     }
 
@@ -87,3 +118,8 @@ public sealed record ConnectorSyncResponse(
     int Unchanged,
     int Rejected,
     IReadOnlyList<string> Errors);
+
+/// <summary>The training picture as ready-to-display sentences, for the phone to show after a sync.</summary>
+public sealed record ConnectorTrainingLoadResponse(
+    bool HasData,
+    IReadOnlyList<string> Lines);

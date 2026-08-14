@@ -31,6 +31,9 @@ public class SessionContext
     public List<WearableDaySummary> RecentWearableDays { get; set; } = [];
     public List<WearableWorkoutSummary> RecentWearableWorkouts { get; set; } = [];
     public WearableTrainingLoad? TrainingLoad { get; set; }
+
+    /// <summary>The load picture as display lines, rendered once so every surface reads the same.</summary>
+    public List<string> TrainingLoadLines { get; set; } = [];
     public decimal? LatestWeightKg { get; set; }
     public decimal? LatestBodyFatPercent { get; set; }
 

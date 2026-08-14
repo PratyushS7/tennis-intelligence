@@ -106,43 +106,11 @@ public sealed class RuleBasedCoachProvider : ICoachProvider
 
     private static void AppendLoadReadout(StringBuilder sb, SessionContext ctx)
     {
-        var load = ctx.TrainingLoad;
-        if (load is null) return;
+        if (ctx.TrainingLoadLines.Count == 0) return;
 
-        sb.AppendLine($"**Training load** — {load.TennisSessionsAnalysed} analysed tennis session(s), zones anchored to your observed max of {load.ObservedMaxHeartRate} bpm.");
-        sb.AppendLine();
-
-        if (load.TennisSessionsAnalysed > 0)
-        {
-            sb.AppendLine($"- Intensity mix: **{load.HardSessions} hard**, {load.ModerateSessions} moderate, {load.LightSessions} light");
-            sb.AppendLine($"- Time at threshold or above: **{load.TennisZones.HardPct:F0}%** of tennis time");
-
-            if (load.TennisZones.HardPct < 15)
-                sb.AppendLine("  - That's low. Your sessions are mostly rallying rather than pushing — fine for feel and volume, but it won't move your fitness.");
-            else if (load.TennisZones.HardPct > 50)
-                sb.AppendLine("  - That's a lot of threshold work. Make sure at least one session a week is genuinely easy, or the hard ones stop being productive.");
-        }
-
-        if (load.RecoveryPoints >= 2 && load.RecoveryFirst is int first && load.RecoveryLatest is int latest)
-        {
-            var delta = latest - first;
-            var direction = delta >= 3 ? "improving" : delta <= -3 ? "sliding" : "flat";
-            sb.AppendLine($"- One-minute heart-rate recovery: **{latest} bpm** latest vs {first} bpm earliest — {direction} across {load.RecoveryPoints} comparable sessions.");
-            if (delta >= 3)
-                sb.AppendLine("  - Your heart is settling faster after hard efforts than it was. That's aerobic fitness moving in the right direction.");
-            else if (delta <= -3)
-                sb.AppendLine("  - Recovery is slower than it was. That usually means accumulated fatigue rather than lost fitness — check whether the easy sessions have quietly disappeared.");
-        }
-
-        if (load.MedianTennisDriftBpm is int drift)
-        {
-            if (drift >= 5)
-                sb.AppendLine($"- Late-session drift: **+{drift} bpm** in the final third. You're paying more for the same tennis late on, so conditioning is the limiter before technique is.");
-            else if (drift <= -5)
-                sb.AppendLine($"- Late-session drift: **{drift} bpm** in the final third — you're winding down at the end rather than fading.");
-            else
-                sb.AppendLine($"- Late-session drift: **{drift:+#;-#;0} bpm** — you hold your level to the end.");
-        }
+        sb.AppendLine("**Training load**");
+        foreach (var line in ctx.TrainingLoadLines)
+            sb.AppendLine($"- {line}");
     }
 
     private static void AppendNextSessionAdvice(StringBuilder sb, SessionContext ctx)

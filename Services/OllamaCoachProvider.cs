@@ -285,17 +285,10 @@ public sealed class OllamaCoachProvider : ICoachProvider
                 sb.AppendLine($"- {sport} {workout.StartedAt:MMM dd}: {string.Join(", ", parts)}");
             }
 
-            if (ctx.TrainingLoad is WearableTrainingLoad load && load.TennisSessionsAnalysed > 0)
+            if (ctx.TrainingLoadLines.Count > 0)
             {
-                sb.AppendLine($"- Tennis load across {load.TennisSessionsAnalysed} analysed session(s): " +
-                    $"{load.HardSessions} hard / {load.ModerateSessions} moderate / {load.LightSessions} light, " +
-                    $"{load.TennisZones.HardPct:F0}% of time at threshold or above, " +
-                    $"zones anchored to an observed max of {load.ObservedMaxHeartRate} bpm.");
-
-                if (load.RecoveryPoints >= 2 && load.RecoveryFirst is int first && load.RecoveryLatest is int latest)
-                    sb.AppendLine($"- One-minute heart-rate recovery trend: {first} bpm earliest to {latest} bpm latest across {load.RecoveryPoints} comparable sessions.");
-                if (load.MedianTennisDriftBpm is int medianDrift)
-                    sb.AppendLine($"- Typical late-session drift: {medianDrift:+#;-#;0} bpm from the middle third to the final third.");
+                foreach (var line in ctx.TrainingLoadLines)
+                    sb.AppendLine($"- {line}");
             }
 
             if (ctx.LatestWeightKg.HasValue)

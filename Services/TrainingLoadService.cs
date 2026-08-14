@@ -65,16 +65,17 @@ public sealed class TrainingLoadService
 
     public async Task<TrainingLoadReport> GetReportAsync(CancellationToken ct = default)
     {
-        // Keyed on the newest workout and the total, so a sync that adds or replaces rows recomputes.
+        // Keyed on the newest workout, the total and the newest import, so a sync that adds,
+        // replaces or merely updates rows recomputes rather than serving a stale picture.
         var fingerprint = await _db.ExternalWorkouts
             .AsNoTracking()
             .GroupBy(_ => 1)
-            .Select(g => new { Max = g.Max(w => w.Id), Count = g.Count() })
+            .Select(g => new { Max = g.Max(w => w.Id), Count = g.Count(), Batch = g.Max(w => w.LastImportBatchId) })
             .FirstOrDefaultAsync(ct);
 
         if (fingerprint is null) return new TrainingLoadReport();
 
-        var key = $"trainingload:{fingerprint.Max}:{fingerprint.Count}";
+        var key = $"trainingload:{fingerprint.Max}:{fingerprint.Count}:{fingerprint.Batch}";
         if (_cache.TryGetValue(key, out TrainingLoadReport? cached) && cached is not null) return cached;
 
         var report = await BuildAsync(ct);
