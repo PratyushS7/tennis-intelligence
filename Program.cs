@@ -98,7 +98,14 @@ app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+// Render injects RENDER_GIT_COMMIT, so the running build is identifiable without a dashboard login.
+var startedAt = DateTimeOffset.UtcNow;
+app.MapGet("/api/health", () => Results.Ok(new
+{
+    status = "ok",
+    commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT") ?? "local",
+    startedAt
+}));
 app.MapConnectorEndpoints();
 
 app.Run();
