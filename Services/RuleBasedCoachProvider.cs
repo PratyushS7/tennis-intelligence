@@ -20,6 +20,12 @@ public sealed class RuleBasedCoachProvider : ICoachProvider
 
         if (context.TotalSessions == 0)
         {
+            if (context.HasWearableData)
+            {
+                BuildWearableOnlyCoaching(sb, context, msg);
+                return Task.FromResult(sb.ToString());
+            }
+
             sb.AppendLine("### 👋 Welcome to Tennis Intelligence!");
             sb.AppendLine("I don't have any session data yet. Log a few sessions and come back — I'll have personalized tips ready for you!");
             return Task.FromResult(sb.ToString());
@@ -45,10 +51,163 @@ public sealed class RuleBasedCoachProvider : ICoachProvider
         return Task.FromResult(sb.ToString());
     }
 
+    private static void BuildWearableOnlyCoaching(StringBuilder sb, SessionContext ctx, string msg)
+    {
+        var load = ctx.TrainingLoad;
+
+        if (msg.Contains("pain") || msg.Contains("injury") || msg.Contains("elbow") || msg.Contains("shoulder"))
+        {
+            sb.AppendLine("### 🩹 Pain and Injury");
+            sb.AppendLine();
+            sb.AppendLine("Your watch can't see pain, so I can only tell you what your body was asked to do.");
+            sb.AppendLine();
+            AppendLoadReadout(sb, ctx);
+            sb.AppendLine();
+            sb.AppendLine("If something is hurting, the load above is the context that matters: repeated hard sessions without an easy one between them is the usual culprit. Log the pain against a session and I can tie the two together.");
+            return;
+        }
+
+        if (msg.Contains("mental") || msg.Contains("confident") || msg.Contains("frustrated") ||
+            msg.Contains("style") || msg.Contains("tactic") || msg.Contains("opponent") || msg.Contains("match"))
+        {
+            sb.AppendLine("### 🧠 That one needs your input");
+            sb.AppendLine();
+            sb.AppendLine("Mental state, tactics and match results aren't in the wearable feed — I'd be inventing them. Here's what I can see instead:");
+            sb.AppendLine();
+            AppendLoadReadout(sb, ctx);
+            return;
+        }
+
+        if (msg.Contains("focus") || msg.Contains("next session") || msg.Contains("work on") ||
+            msg.Contains("drill") || msg.Contains("exercise") || msg.Contains("practice"))
+        {
+            sb.AppendLine("### 🎯 What to do next");
+            sb.AppendLine();
+            AppendNextSessionAdvice(sb, ctx);
+            sb.AppendLine();
+            AppendLoadReadout(sb, ctx);
+            return;
+        }
+
+        sb.AppendLine(msg.Contains("week") || msg.Contains("summary") || msg.Contains("review") || msg.Contains("analyze")
+            ? "### 📊 Your training, from the watch"
+            : "### ⌚ What your watch is telling me");
+        sb.AppendLine();
+
+        if (load is null || load.TennisSessionsAnalysed == 0)
+            sb.AppendLine("No tennis sessions with a heart-rate series yet, so the picture below is partial.");
+
+        AppendLoadReadout(sb, ctx);
+        sb.AppendLine();
+        AppendRecentSessions(sb, ctx);
+        sb.AppendLine();
+        sb.AppendLine("_Everything above comes from your watch. Log a session to add what it can't measure — what you worked on, how it felt, and what broke down._");
+    }
+
+    private static void AppendLoadReadout(StringBuilder sb, SessionContext ctx)
+    {
+        var load = ctx.TrainingLoad;
+        if (load is null) return;
+
+        sb.AppendLine($"**Training load** — {load.TennisSessionsAnalysed} analysed tennis session(s), zones anchored to your observed max of {load.ObservedMaxHeartRate} bpm.");
+        sb.AppendLine();
+
+        if (load.TennisSessionsAnalysed > 0)
+        {
+            sb.AppendLine($"- Intensity mix: **{load.HardSessions} hard**, {load.ModerateSessions} moderate, {load.LightSessions} light");
+            sb.AppendLine($"- Time at threshold or above: **{load.TennisZones.HardPct:F0}%** of tennis time");
+
+            if (load.TennisZones.HardPct < 15)
+                sb.AppendLine("  - That's low. Your sessions are mostly rallying rather than pushing — fine for feel and volume, but it won't move your fitness.");
+            else if (load.TennisZones.HardPct > 50)
+                sb.AppendLine("  - That's a lot of threshold work. Make sure at least one session a week is genuinely easy, or the hard ones stop being productive.");
+        }
+
+        if (load.RecoveryPoints >= 2 && load.RecoveryFirst is int first && load.RecoveryLatest is int latest)
+        {
+            var delta = latest - first;
+            var direction = delta >= 3 ? "improving" : delta <= -3 ? "sliding" : "flat";
+            sb.AppendLine($"- One-minute heart-rate recovery: **{latest} bpm** latest vs {first} bpm earliest — {direction} across {load.RecoveryPoints} comparable sessions.");
+            if (delta >= 3)
+                sb.AppendLine("  - Your heart is settling faster after hard efforts than it was. That's aerobic fitness moving in the right direction.");
+            else if (delta <= -3)
+                sb.AppendLine("  - Recovery is slower than it was. That usually means accumulated fatigue rather than lost fitness — check whether the easy sessions have quietly disappeared.");
+        }
+
+        if (load.MedianTennisDriftBpm is int drift)
+        {
+            if (drift >= 5)
+                sb.AppendLine($"- Late-session drift: **+{drift} bpm** in the final third. You're paying more for the same tennis late on, so conditioning is the limiter before technique is.");
+            else if (drift <= -5)
+                sb.AppendLine($"- Late-session drift: **{drift} bpm** in the final third — you're winding down at the end rather than fading.");
+            else
+                sb.AppendLine($"- Late-session drift: **{drift:+#;-#;0} bpm** — you hold your level to the end.");
+        }
+    }
+
+    private static void AppendNextSessionAdvice(StringBuilder sb, SessionContext ctx)
+    {
+        var load = ctx.TrainingLoad;
+        var lastHard = ctx.RecentWearableWorkouts.FirstOrDefault(w => w.Character == "Hard");
+
+        if (lastHard is not null)
+        {
+            var daysSince = (int)(DateTimeOffset.UtcNow - lastHard.StartedAt).TotalDays;
+            if (daysSince <= 1)
+            {
+                sb.AppendLine($"Your last hard session was {(daysSince == 0 ? "today" : "yesterday")}. Keep the next one technical and low intensity — feeds, targets, serve rhythm.");
+                return;
+            }
+        }
+
+        if (load is not null && load.TennisSessionsAnalysed > 0)
+        {
+            if (load.TennisZones.HardPct < 15)
+                sb.AppendLine("Your tennis has been sitting comfortably below threshold. Put one deliberately hard block in the next session — live points or a pressured drill — so there's something to adapt to.");
+            else if (load.HardSessions >= 3 && load.LightSessions == 0)
+                sb.AppendLine("Everything recently has been hard with nothing easy between. Make the next session an easy one; you'll get more from the hard sessions that follow.");
+            else if (load.MedianTennisDriftBpm is int drift && drift >= 5)
+                sb.AppendLine($"Your intensity mix is fine, so the limiter is endurance: your heart rate climbs about {drift} bpm in the final third of a session while the tennis stays the same. Play your last 20 minutes as if they were the first — and if you fall off there, that's the block to extend, not the one to cut short.");
+            else
+                sb.AppendLine("Your intensity mix and late-session endurance both look sound. Nothing in the wearable data is holding you back right now, so the next gain is technical — and I'd need a logged session to see it.");
+        }
+        else
+        {
+            sb.AppendLine("Not enough analysed tennis yet to call this. Wear the watch for a few sessions and I'll have something specific.");
+        }
+    }
+
+    private static void AppendRecentSessions(StringBuilder sb, SessionContext ctx)
+    {
+        if (ctx.RecentWearableWorkouts.Count == 0) return;
+
+        sb.AppendLine("**Recent sessions**");
+        foreach (var workout in ctx.RecentWearableWorkouts.Take(6))
+        {
+            var sport = string.IsNullOrWhiteSpace(workout.ActivityType) ? "Session" : workout.ActivityType;
+            var parts = new List<string> { $"{workout.DurationMinutes} min" };
+
+            if (workout.AverageHeartRateBpm.HasValue)
+                parts.Add($"avg {workout.AverageHeartRateBpm} bpm");
+            if (workout.Character is string character)
+                parts.Add(character.ToLowerInvariant());
+            if (workout.HardZonePct is double hard && hard >= 1)
+                parts.Add($"{hard:F0}% at threshold+");
+
+            sb.AppendLine($"- {workout.StartedAt:MMM dd} — {sport}: {string.Join(", ", parts)}");
+        }
+    }
+
     private static void BuildFocusSuggestion(StringBuilder sb, SessionContext ctx)
     {
         sb.AppendLine("### 🎯 Focus Suggestion for Next Session");
         sb.AppendLine();
+
+        if (ctx.TrainingLoad is not null)
+        {
+            AppendNextSessionAdvice(sb, ctx);
+            sb.AppendLine();
+        }
 
         var topBreakdown = ctx.BreakdownAreaCounts.OrderByDescending(x => x.Value).FirstOrDefault();
         if (topBreakdown.Key != null)
@@ -173,6 +332,12 @@ public sealed class RuleBasedCoachProvider : ICoachProvider
             sb.AppendLine("💡 Your energy levels are on the lower side. Consider adjusting session timing or improving sleep/nutrition.");
         else
             sb.AppendLine("⚡ Energy levels look healthy!");
+
+        if (ctx.TrainingLoad is not null)
+        {
+            sb.AppendLine();
+            AppendLoadReadout(sb, ctx);
+        }
 
         var latestWearableDay = ctx.RecentWearableDays.FirstOrDefault();
         if (latestWearableDay?.SleepDurationMinutes is int sleepMinutes)

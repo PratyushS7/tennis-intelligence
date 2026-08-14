@@ -30,8 +30,12 @@ public class SessionContext
     // Wearable recovery and training-load context
     public List<WearableDaySummary> RecentWearableDays { get; set; } = [];
     public List<WearableWorkoutSummary> RecentWearableWorkouts { get; set; } = [];
+    public WearableTrainingLoad? TrainingLoad { get; set; }
     public decimal? LatestWeightKg { get; set; }
     public decimal? LatestBodyFatPercent { get; set; }
+
+    /// <summary>True when the watch has enough to coach from even though nothing was logged by hand.</summary>
+    public bool HasWearableData => RecentWearableWorkouts.Count > 0;
 }
 
 public sealed class WearableDaySummary
@@ -51,11 +55,42 @@ public sealed class WearableDaySummary
 public sealed class WearableWorkoutSummary
 {
     public DateTimeOffset StartedAt { get; set; }
+
+    /// <summary>The sport as the watch recorded it. Running and tennis need different advice.</summary>
+    public string ActivityType { get; set; } = string.Empty;
+
     public int DurationMinutes { get; set; }
     public decimal? CaloriesKcal { get; set; }
     public int? AverageHeartRateBpm { get; set; }
     public int? MaxHeartRateBpm { get; set; }
-    public int HeartRateSampleCount { get; set; }
+
+    /// <summary>How hard the session was, or null when no heart-rate series was recorded.</summary>
+    public string? Character { get; set; }
+
+    /// <summary>Share of the session at threshold or above.</summary>
+    public double? HardZonePct { get; set; }
+
+    public int? HeartRateRecovery60 { get; set; }
+    public int? DriftBpm { get; set; }
+}
+
+/// <summary>Training picture derived from the watch alone, for when nothing has been logged by hand.</summary>
+public sealed class WearableTrainingLoad
+{
+    public int ObservedMaxHeartRate { get; set; }
+    public int TennisSessionsAnalysed { get; set; }
+    public int HardSessions { get; set; }
+    public int ModerateSessions { get; set; }
+    public int LightSessions { get; set; }
+    public ZoneDistribution TennisZones { get; set; } = new();
+
+    /// <summary>Oldest and newest comparable recovery readings, so the coach can call a direction.</summary>
+    public int? RecoveryFirst { get; set; }
+    public int? RecoveryLatest { get; set; }
+    public int RecoveryPoints { get; set; }
+
+    /// <summary>Typical bpm rise from the middle to the final third of a tennis session.</summary>
+    public int? MedianTennisDriftBpm { get; set; }
 }
 
 public class GoalSummary

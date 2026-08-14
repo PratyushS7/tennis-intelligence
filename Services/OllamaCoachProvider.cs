@@ -264,12 +264,38 @@ public sealed class OllamaCoachProvider : ICoachProvider
 
             foreach (var workout in ctx.RecentWearableWorkouts.Take(5))
             {
-                sb.AppendLine(
-                    $"- Tennis {workout.StartedAt:MMM dd}: {workout.DurationMinutes} min, " +
-                    $"avg HR {workout.AverageHeartRateBpm?.ToString() ?? "n/a"}, " +
-                    $"max HR {workout.MaxHeartRateBpm?.ToString() ?? "n/a"}, " +
-                    $"{workout.CaloriesKcal?.ToString("0") ?? "n/a"} kcal, " +
-                    $"{workout.HeartRateSampleCount} HR samples");
+                var parts = new List<string>
+                {
+                    $"{workout.DurationMinutes} min",
+                    $"avg HR {workout.AverageHeartRateBpm?.ToString() ?? "n/a"}",
+                    $"max HR {workout.MaxHeartRateBpm?.ToString() ?? "n/a"}",
+                    $"{workout.CaloriesKcal?.ToString("0") ?? "n/a"} kcal"
+                };
+
+                if (workout.Character is string character)
+                    parts.Add($"{character.ToLowerInvariant()} session");
+                if (workout.HardZonePct is double hardPct)
+                    parts.Add($"{hardPct:F0}% at threshold+");
+                if (workout.HeartRateRecovery60 is int recovery)
+                    parts.Add($"{recovery} bpm 1-min recovery");
+                if (workout.DriftBpm is int drift)
+                    parts.Add($"{drift:+#;-#;0} bpm late drift");
+
+                var sport = string.IsNullOrWhiteSpace(workout.ActivityType) ? "Session" : workout.ActivityType;
+                sb.AppendLine($"- {sport} {workout.StartedAt:MMM dd}: {string.Join(", ", parts)}");
+            }
+
+            if (ctx.TrainingLoad is WearableTrainingLoad load && load.TennisSessionsAnalysed > 0)
+            {
+                sb.AppendLine($"- Tennis load across {load.TennisSessionsAnalysed} analysed session(s): " +
+                    $"{load.HardSessions} hard / {load.ModerateSessions} moderate / {load.LightSessions} light, " +
+                    $"{load.TennisZones.HardPct:F0}% of time at threshold or above, " +
+                    $"zones anchored to an observed max of {load.ObservedMaxHeartRate} bpm.");
+
+                if (load.RecoveryPoints >= 2 && load.RecoveryFirst is int first && load.RecoveryLatest is int latest)
+                    sb.AppendLine($"- One-minute heart-rate recovery trend: {first} bpm earliest to {latest} bpm latest across {load.RecoveryPoints} comparable sessions.");
+                if (load.MedianTennisDriftBpm is int medianDrift)
+                    sb.AppendLine($"- Typical late-session drift: {medianDrift:+#;-#;0} bpm from the middle third to the final third.");
             }
 
             if (ctx.LatestWeightKg.HasValue)

@@ -10,14 +10,16 @@ public sealed class CoachService
     private readonly OllamaCoachProvider _ollama;
     private readonly RuleBasedCoachProvider _ruleBased;
     private readonly InteractionService _interaction;
+    private readonly TrainingLoadService _trainingLoad;
     private readonly ILogger<CoachService> _logger;
 
-    public CoachService(TennisDbContext db, OllamaCoachProvider ollama, RuleBasedCoachProvider ruleBased, InteractionService interaction, ILogger<CoachService> logger)
+    public CoachService(TennisDbContext db, OllamaCoachProvider ollama, RuleBasedCoachProvider ruleBased, InteractionService interaction, TrainingLoadService trainingLoad, ILogger<CoachService> logger)
     {
         _db = db;
         _ollama = ollama;
         _ruleBased = ruleBased;
         _interaction = interaction;
+        _trainingLoad = trainingLoad;
         _logger = logger;
     }
 
@@ -202,20 +204,52 @@ public sealed class CoachService
                 })
                 .ToListAsync(ct);
 
-            context.RecentWearableWorkouts = await _db.ExternalWorkouts
+            var report = await _trainingLoad.GetReportAsync(ct);
+            var analysisById = report.Workouts.ToDictionary(w => w.Id);
+
+            var recent = await _db.ExternalWorkouts
                 .AsNoTracking()
                 .OrderByDescending(workout => workout.StartedAt)
                 .Take(10)
-                .Select(workout => new WearableWorkoutSummary
+                .Select(workout => new
                 {
-                    StartedAt = workout.StartedAt,
-                    DurationMinutes = (int)(workout.EndedAt - workout.StartedAt).TotalMinutes,
-                    CaloriesKcal = workout.CaloriesKcal,
-                    AverageHeartRateBpm = workout.AverageHeartRateBpm,
-                    MaxHeartRateBpm = workout.MaxHeartRateBpm,
-                    HeartRateSampleCount = workout.HeartRateSampleCount
+                    workout.Id,
+                    workout.StartedAt,
+                    workout.EndedAt,
+                    workout.ActivityType,
+                    workout.CaloriesKcal,
+                    workout.AverageHeartRateBpm,
+                    workout.MaxHeartRateBpm
                 })
                 .ToListAsync(ct);
+
+            context.RecentWearableWorkouts = recent
+                .Select(workout =>
+                {
+                    var summary = new WearableWorkoutSummary
+                    {
+                        StartedAt = workout.StartedAt,
+                        ActivityType = workout.ActivityType,
+                        DurationMinutes = (int)(workout.EndedAt - workout.StartedAt).TotalMinutes,
+                        CaloriesKcal = workout.CaloriesKcal,
+                        AverageHeartRateBpm = workout.AverageHeartRateBpm,
+                        MaxHeartRateBpm = workout.MaxHeartRateBpm
+                    };
+
+                    // Only sessions the watch sampled carry an analysis; the rest stay bare rather than guessed at.
+                    if (analysisById.TryGetValue(workout.Id, out var analysed) && analysed.Analysis.HasSeries)
+                    {
+                        summary.Character = analysed.Analysis.Character.ToString();
+                        summary.HardZonePct = analysed.Analysis.Zones.HardPct;
+                        summary.HeartRateRecovery60 = analysed.Analysis.HeartRateRecovery60;
+                        summary.DriftBpm = analysed.Analysis.DriftBpm;
+                    }
+
+                    return summary;
+                })
+                .ToList();
+
+            context.TrainingLoad = BuildTrainingLoad(report);
 
             var latestWeight = await _db.ExternalBodyMeasurements
                 .AsNoTracking()
@@ -237,6 +271,32 @@ public sealed class CoachService
         {
             _logger.LogWarning(ex, "Failed to load wearable data for coaching context");
         }
+    }
+
+    private static WearableTrainingLoad? BuildTrainingLoad(TrainingLoadReport report)
+    {
+        if (!report.HasData) return null;
+
+        var tennis = report.TennisWorkouts;
+        var drifts = tennis
+            .Where(w => w.Analysis.DriftBpm.HasValue)
+            .Select(w => w.Analysis.DriftBpm!.Value)
+            .OrderBy(d => d)
+            .ToList();
+
+        return new WearableTrainingLoad
+        {
+            ObservedMaxHeartRate = report.ObservedMaxHeartRate,
+            TennisSessionsAnalysed = tennis.Count,
+            HardSessions = report.TennisHardSessions,
+            ModerateSessions = report.TennisModerateSessions,
+            LightSessions = report.TennisLightSessions,
+            TennisZones = report.TennisZones,
+            RecoveryFirst = report.RecoveryTrend.FirstOrDefault()?.Analysis.HeartRateRecovery60,
+            RecoveryLatest = report.RecoveryTrend.LastOrDefault()?.Analysis.HeartRateRecovery60,
+            RecoveryPoints = report.RecoveryTrend.Count,
+            MedianTennisDriftBpm = drifts.Count > 0 ? drifts[drifts.Count / 2] : null
+        };
     }
 
     private static GoalSummary ToGoalSummary(DevelopmentGoal g)
