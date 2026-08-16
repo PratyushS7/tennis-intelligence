@@ -30,6 +30,16 @@ public sealed class TennisDbContext : DbContext
 
             entity.Ignore(e => e.BreakdownAreaList);
             entity.Ignore(e => e.BreakdownReasonList);
+
+            // Unique over non-null values only, so a workout cannot be logged twice by any path
+            // while hand-written sessions stay unlinked.
+            entity.HasIndex(e => e.ExternalWorkoutId)
+                  .IsUnique()
+                  .HasFilter("\"ExternalWorkoutId\" IS NOT NULL");
+            entity.HasOne(e => e.ExternalWorkout)
+                  .WithMany()
+                  .HasForeignKey(e => e.ExternalWorkoutId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<InteractionLog>(entity =>

@@ -37,14 +37,11 @@ public sealed class LogSessionModel : PageModel
     // Active goals to display in the form
     public List<DevelopmentGoal> ActiveGoals { get; set; } = [];
 
-    public List<string> BreakdownAreaOptions =>
-        ["Forehand", "Backhand", "Serve", "Volley", "Footwork", "Return", "Overhead", "Fitness"];
+    public List<string> BreakdownAreaOptions => [.. SessionVocabulary.BreakdownAreas];
 
-    public List<string> BreakdownReasonOptions =>
-        ["Late to ball", "Poor timing", "Bad decision", "Low energy", "Lack of focus", "Tight muscles", "Wrong grip", "Poor positioning"];
+    public List<string> BreakdownReasonOptions => [.. SessionVocabulary.BreakdownReasons];
 
-    public List<string> SessionTypeOptions =>
-        ["Practice", "Match", "Drill", "Hitting"];
+    public List<string> SessionTypeOptions => [.. SessionVocabulary.SessionTypes];
 
     public List<string> OpponentLevelOptions => ["Below me", "Similar", "Above me"];
     public List<string> PlayStyleOptions => ["Aggressive", "Defensive", "All-Court", "Counter-Puncher"];

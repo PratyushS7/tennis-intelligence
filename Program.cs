@@ -56,6 +56,7 @@ builder.Services.AddScoped<CoachService>();
 builder.Services.AddScoped<WearableImportService>();
 builder.Services.AddMemoryCache(options => options.SizeLimit = 64);
 builder.Services.AddScoped<TrainingLoadService>();
+builder.Services.AddScoped<SessionLogService>();
 builder.Services.Configure<ConnectorOptions>(
     builder.Configuration.GetSection(ConnectorOptions.SectionName));
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

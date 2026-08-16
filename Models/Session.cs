@@ -59,6 +59,10 @@ public sealed class Session
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>The wearable workout this session describes, when it was logged from the phone.</summary>
+    public int? ExternalWorkoutId { get; set; }
+    public ExternalWorkout? ExternalWorkout { get; set; }
+
     public List<GoalCheckIn> GoalCheckIns { get; set; } = [];
 
     // Helper properties (not mapped)
