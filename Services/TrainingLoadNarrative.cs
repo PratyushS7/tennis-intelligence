@@ -37,7 +37,39 @@ public static class TrainingLoadNarrative
 
         AppendRecovery(lines, report);
         AppendDrift(lines, report);
+        AppendRhythm(lines, report);
         return lines;
+    }
+
+    /// <summary>
+    /// Describes how continuously a session was played. Heart rate lags effort by several seconds
+    /// and smooths short bursts together, so this is the rhythm of passages of play, never a count
+    /// of points, and the wording must not imply otherwise.
+    /// </summary>
+    private static void AppendRhythm(List<string> lines, TrainingLoadReport report)
+    {
+        var rhythms = report.TennisWorkouts
+            .Select(w => w.Analysis.Rhythm)
+            .Where(r => r is not null && r.WorkToRestRatio.HasValue)
+            .Select(r => r!)
+            .ToList();
+
+        if (rhythms.Count < 3) return;
+
+        var ratios = rhythms.Select(r => r.WorkToRestRatio!.Value).OrderBy(v => v).ToList();
+        var median = ratios[ratios.Count / 2];
+
+        lines.Add($"Session rhythm: about {rhythms.Average(r => r.BoutsPerHour):F0} pushes an hour, " +
+                  $"typically {median:F1}s of climbing heart rate per second of recovery.");
+
+        if (median >= 1.4)
+            lines.Add("You play continuously, with little standing around. Good for match conditioning, and it explains why these sessions cost you.");
+        else if (median <= 0.8)
+            lines.Add("There is more recovery than work in your sessions. Fine for technical practice, but it is not the rhythm of a match.");
+
+        // The spread matters more than the middle: it is the difference between a hit and a battle.
+        if (ratios[^1] - ratios[0] >= 0.8)
+            lines.Add($"Your sessions vary a lot in how continuous they are, from {ratios[0]:F1} to {ratios[^1]:F1}. Two sessions of equal intensity can still be very different workouts.");
     }
 
     private static void AppendRecovery(List<string> lines, TrainingLoadReport report)

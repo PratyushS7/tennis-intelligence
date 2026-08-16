@@ -55,6 +55,9 @@ public sealed class WorkoutAnalysis
     /// excluded because it is warm-up, which would otherwise swamp the signal.
     /// </summary>
     public int? DriftBpm { get; set; }
+
+    /// <summary>How stop-start the session was, or null when the effort was too steady to have a shape.</summary>
+    public SessionRhythm? Rhythm { get; set; }
 }
 
 /// <summary>
@@ -111,6 +114,7 @@ public static class WorkoutAnalytics
         analysis.RecoveryWindowCount = windows;
 
         analysis.DriftBpm = ComputeDrift(samples);
+        analysis.Rhythm = RhythmAnalytics.Analyse(samples);
         return analysis;
     }
 
